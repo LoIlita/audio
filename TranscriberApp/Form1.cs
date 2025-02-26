@@ -13,7 +13,7 @@ public partial class Form1 : Form
     private ITranscriber? transcriber;
     private IExternalAppController externalAppController;
     private string transcriptionText = string.Empty;
-    private string transcriptionFilePath = string.Empty;
+    private string? transcriptionFilePath = string.Empty;
     private string lastTranscriptionFilePath = string.Empty;
     private Stopwatch stopwatch = new Stopwatch();
 

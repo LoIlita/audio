@@ -29,7 +29,7 @@ public class WhisperTranscriber : ITranscriber
         string pythonPath = "python", 
         string? scriptPath = null, 
         string outputDirectory = "transcriptions",
-        string modelSize = "small")
+        string modelSize = "medium")
     {
         _pythonPath = pythonPath;
         _scriptPath = scriptPath ?? Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "PythonScripts", "whisper_transcribe.py");
@@ -185,7 +185,7 @@ public class WhisperTranscriber : ITranscriber
         }
 
         // Pobierz opcje transkrypcji
-        string language = options.ContainsKey("language") ? options["language"].ToString() : "pl";
+        string language = options.ContainsKey("language") ? options["language"]?.ToString() ?? "pl" : "pl";
         bool addPunctuation = options.ContainsKey("add_punctuation") && (bool)options["add_punctuation"];
         bool highQuality = options.ContainsKey("high_quality") && (bool)options["high_quality"];
         

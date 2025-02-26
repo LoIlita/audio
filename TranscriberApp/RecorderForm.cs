@@ -22,9 +22,9 @@ namespace TranscriberApp
         private readonly ISampleProvider source;
         private readonly float cutoffFrequency;
         private readonly float q;
-        private float[] filterCoeffs;
-        private float[] xv;
-        private float[] yv;
+        private float[] filterCoeffs = new float[5];
+        private float[] xv = Array.Empty<float>();
+        private float[] yv = Array.Empty<float>();
 
         public HighPassFilterSampleProvider(ISampleProvider source, float cutoffFrequency, float q = 1.0f)
         {
@@ -108,9 +108,9 @@ namespace TranscriberApp
         private readonly ISampleProvider source;
         private readonly float cutoffFrequency;
         private readonly float q;
-        private float[] filterCoeffs;
-        private float[] xv;
-        private float[] yv;
+        private float[] filterCoeffs = new float[5];
+        private float[] xv = Array.Empty<float>();
+        private float[] yv = Array.Empty<float>();
 
         public LowPassFilterSampleProvider(ISampleProvider source, float cutoffFrequency, float q = 1.0f)
         {

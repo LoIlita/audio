@@ -62,7 +62,7 @@ namespace TranscriberApp
                 _cancellationTokenSource = new CancellationTokenSource();
 
                 // Upewnij się, że katalog docelowy istnieje
-                string directory = Path.GetDirectoryName(_outputFilePath);
+                string? directory = Path.GetDirectoryName(_outputFilePath);
                 if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
                 {
                     Directory.CreateDirectory(directory);
