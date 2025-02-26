@@ -1,0 +1,35 @@
+# Pliki i katalogi .NET
+bin/
+obj/
+.vs/
+*.user
+*.suo
+*.cache
+*.dll
+*.exe
+*.pdb
+*.log
+
+# Pliki IDE
+.idea/
+.vscode/
+*.sln.iml
+
+# Pliki tymczasowe
+[Tt]emp/
+[Tt]mp/
+*.tmp
+*.bak
+*.swp
+
+# Pliki konfiguracyjne
+appsettings.*.json
+!appsettings.example.json
+
+# Katalogi pakietów
+packages/
+*.nupkg
+
+# Pliki testowe
+TestResults/
+[Tt]est[Rr]esult*/ 
