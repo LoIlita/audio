@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Diagnostics;
 using System.Collections.Generic;
+using System.Threading;
 
 namespace TranscriberApp;
 
@@ -11,18 +12,145 @@ public partial class Form1 : Form
 {
     private string selectedFilePath = string.Empty;
     private ITranscriber? transcriber;
-    private IExternalAppController externalAppController;
     private string transcriptionText = string.Empty;
     private string? transcriptionFilePath = string.Empty;
     private string lastTranscriptionFilePath = string.Empty;
     private Stopwatch stopwatch = new Stopwatch();
+    private CancellationTokenSource? cancellationTokenSource;
+    
+    // Flaga wskazująca, czy bieżący plik został już przetranskrybowany
+    private bool currentFileTranscribed = false;
+    
+    // Ustawienia opcji
+    private string selectedLanguageCode = "pl";
+    private string selectedModelSize = "medium";
+    private bool highQualityTranscription = false;
+    private bool addPunctuation = true;
+    
+    // Obiekt ustawień aplikacji
+    private AppSettings appSettings = new AppSettings();
 
     public Form1()
     {
         InitializeComponent();
+        
+        // Dodanie globalnego handlera wyjątków dla wątku UI
+        Application.ThreadException += new ThreadExceptionEventHandler(Application_ThreadException);
+        AppDomain.CurrentDomain.UnhandledException += new UnhandledExceptionEventHandler(CurrentDomain_UnhandledException);
+        
+        // Wczytaj ustawienia
+        LoadSettings();
+        
         InitializeTranscriber();
-        InitializeLanguageOptions();
-        externalAppController = new ObsidianController();
+    }
+    
+    // Metoda wczytująca ustawienia
+    private void LoadSettings()
+    {
+        try
+        {
+            // Wczytaj ustawienia z pliku
+            appSettings = AppSettings.Load();
+            
+            // Zastosuj wczytane ustawienia
+            selectedLanguageCode = appSettings.LanguageCode;
+            selectedModelSize = appSettings.ModelSize;
+            highQualityTranscription = appSettings.HighQualityTranscription;
+            addPunctuation = appSettings.AddPunctuation;
+            
+            Debug.WriteLine($"Wczytano ustawienia: język={selectedLanguageCode}, model={selectedModelSize}");
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Błąd podczas wczytywania ustawień: {ex.Message}");
+            
+            // W przypadku błędu użyj domyślnych ustawień
+            appSettings = new AppSettings();
+            selectedLanguageCode = appSettings.LanguageCode;
+            selectedModelSize = appSettings.ModelSize;
+            highQualityTranscription = appSettings.HighQualityTranscription;
+            addPunctuation = appSettings.AddPunctuation;
+        }
+    }
+    
+    // Metoda zapisująca ustawienia
+    private void SaveSettings()
+    {
+        try
+        {
+            // Aktualizuj obiekt ustawień
+            appSettings.LanguageCode = selectedLanguageCode;
+            appSettings.ModelSize = selectedModelSize;
+            appSettings.HighQualityTranscription = highQualityTranscription;
+            appSettings.AddPunctuation = addPunctuation;
+            
+            // Zapisz ustawienia
+            appSettings.Save();
+            
+            Debug.WriteLine("Zapisano ustawienia");
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Błąd podczas zapisywania ustawień: {ex.Message}");
+        }
+    }
+    
+    // Globalny handler wyjątków dla wątku UI
+    private void Application_ThreadException(object sender, ThreadExceptionEventArgs e)
+    {
+        try
+        {
+            Exception ex = e.Exception;
+            string errorMessage = $"Wystąpił nieoczekiwany błąd: {ex.Message}";
+            
+            if (ex.InnerException != null)
+            {
+                errorMessage += $"\n\nSzczegóły: {ex.InnerException.Message}";
+            }
+            
+            Debug.WriteLine($"Thread Exception: {ex}");
+            MessageBox.Show(errorMessage, "Błąd aplikacji", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+        catch
+        {
+            try
+            {
+                MessageBox.Show("Wystąpił poważny błąd", "Poważny błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                // Nie zamykaj aplikacji
+            }
+        }
+    }
+    
+    // Globalny handler dla nieobsłużonych wyjątków
+    private void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
+    {
+        try
+        {
+            Exception ex = (Exception)e.ExceptionObject;
+            string errorMessage = $"Wystąpił nieoczekiwany błąd: {ex.Message}";
+            
+            if (ex.InnerException != null)
+            {
+                errorMessage += $"\n\nSzczegóły: {ex.InnerException.Message}";
+            }
+            
+            Debug.WriteLine($"Unhandled Exception: {ex}");
+            MessageBox.Show(errorMessage, "Błąd aplikacji", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+        catch
+        {
+            try
+            {
+                MessageBox.Show("Wystąpił poważny błąd", "Poważny błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                // Nie możemy nic więcej zrobić
+            }
+        }
     }
 
     private void InitializeTranscriber()
@@ -37,176 +165,243 @@ public partial class Form1 : Form
         }
     }
 
-    private void InitializeLanguageOptions()
-    {
-        // Dodaj dostępne języki
-        cboLanguage.Items.Add("Polski");
-        cboLanguage.Items.Add("Angielski");
-        cboLanguage.Items.Add("Niemiecki");
-        cboLanguage.Items.Add("Francuski");
-        cboLanguage.Items.Add("Hiszpański");
-        cboLanguage.Items.Add("Włoski");
-        cboLanguage.Items.Add("Rosyjski");
-        cboLanguage.Items.Add("Ukraiński");
-        cboLanguage.Items.Add("Czeski");
-        cboLanguage.SelectedIndex = 0; // Domyślnie polski
-    }
-
     private void btnSelectFile_Click(object sender, EventArgs e)
     {
-        using (OpenFileDialog openFileDialog = new OpenFileDialog())
+        try
         {
-            openFileDialog.Filter = "Pliki audio (*.wav;*.mp3)|*.wav;*.mp3|Wszystkie pliki (*.*)|*.*";
+            OpenFileDialog openFileDialog = new OpenFileDialog();
+            openFileDialog.Filter = "Pliki audio (*.mp3;*.wav;*.flac;*.ogg;*.m4a)|*.mp3;*.wav;*.flac;*.ogg;*.m4a|Wszystkie pliki (*.*)|*.*";
             openFileDialog.Title = "Wybierz plik audio do transkrypcji";
 
             if (openFileDialog.ShowDialog() == DialogResult.OK)
             {
                 selectedFilePath = openFileDialog.FileName;
                 lblStatus.Text = $"Status: Wybrano plik {Path.GetFileName(selectedFilePath)}";
+                
+                // Zresetuj flagę transkrypcji, ponieważ wybrano nowy plik
+                currentFileTranscribed = false;
+                
+                // Teraz można transkrybować plik
                 btnTranscribe.Enabled = true;
-                ResetProgressBar();
+                
+                // Wyświetl informację o wybranym pliku
+                txtTranscription.Text = $"Wybrany plik: {Path.GetFileName(selectedFilePath)}\nGotowy do transkrypcji.";
             }
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Błąd podczas wybierania pliku: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
     }
 
     private async void btnTranscribe_Click(object sender, EventArgs e)
     {
-        if (string.IsNullOrEmpty(selectedFilePath))
-        {
-            MessageBox.Show("Proszę najpierw wybrać plik audio.", "Brak pliku", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-            return;
-        }
-
-        if (transcriber == null)
-        {
-            MessageBox.Show("Transkryber nie został poprawnie zainicjalizowany.", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            return;
-        }
-
         try
         {
+            if (string.IsNullOrEmpty(selectedFilePath))
+            {
+                MessageBox.Show("Proszę najpierw wybrać plik audio.", "Brak wybranego pliku", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            // Sprawdź, czy plik został już przetranskrybowany
+            if (currentFileTranscribed)
+            {
+                DialogResult dialogResult = MessageBox.Show(
+                    "Ten plik został już przetranskrybowany. Czy chcesz przeprowadzić transkrypcję ponownie?",
+                    "Plik już transkrybowany",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Question);
+                
+                if (dialogResult == DialogResult.No)
+                {
+                    return;
+                }
+            }
+
+            if (transcriber == null)
+            {
+                MessageBox.Show("Transkryber nie został zainicjalizowany.", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+            
+            // Wyłącz przyciski, aby uniknąć wielokrotnego kliknięcia
             btnTranscribe.Enabled = false;
             btnSelectFile.Enabled = false;
+            btnOptions.Enabled = false;
             txtTranscription.Text = "Trwa transkrypcja...";
-            lblStatus.Text = "Status: Transkrypcja w toku...";
-            
-            // Przygotuj pasek postępu
-            progressBarTranscription.Value = 0;
-            progressBarTranscription.Visible = true;
+            lblStatus.Text = "Status: Przygotowanie do transkrypcji...";
 
             // Przygotuj opcje transkrypcji
             Dictionary<string, object> options = new Dictionary<string, object>
             {
-                { "language", GetLanguageCode() },
-                { "add_punctuation", chkAddPunctuation.Checked },
-                { "high_quality", chkHighQualityTranscription.Checked }
+                { "language", selectedLanguageCode },
+                { "add_punctuation", addPunctuation },
+                { "high_quality", highQualityTranscription },
+                { "model_size", selectedModelSize }
             };
+            
+            // Utwórz token anulowania
+            cancellationTokenSource = new CancellationTokenSource();
+            var cancellationToken = cancellationTokenSource.Token;
 
             // Funkcja zwrotna do raportowania postępu
-            Action<int> progressCallback = (progress) =>
+            Action<int, string?> progressCallback = (progress, statusInfo) =>
             {
-                // Używamy Invoke, aby aktualizować UI z innego wątku
-                if (lblStatus.InvokeRequired)
+                try 
                 {
-                    lblStatus.Invoke(new Action(() => 
+                    // Sprawdź, czy anulowano operację
+                    if (cancellationToken.IsCancellationRequested)
                     {
-                        lblStatus.Text = $"Status: Transkrypcja w toku... {progress}%";
-                        progressBarTranscription.Value = progress;
-                    }));
+                        return;
+                    }
+                
+                    // Używamy Invoke, aby aktualizować UI z innego wątku
+                    if (lblStatus.InvokeRequired)
+                    {
+                        lblStatus.Invoke(new Action(() => 
+                        {
+                            UpdateStatusLabel(progress, statusInfo);
+                        }));
+                    }
+                    else
+                    {
+                        UpdateStatusLabel(progress, statusInfo);
+                    }
                 }
-                else
+                catch (Exception ex)
                 {
-                    lblStatus.Text = $"Status: Transkrypcja w toku... {progress}%";
-                    progressBarTranscription.Value = progress;
+                    // Rejestruj błędy, ale nie pozwól, aby zakończyły aplikację
+                    Debug.WriteLine($"Błąd w callback: {ex.Message}");
                 }
             };
 
             // Uruchom stoper
             stopwatch.Restart();
             
-            // Wykonaj transkrypcję
-            transcriptionFilePath = await transcriber.TranscribeAsync(selectedFilePath, progressCallback);
+            // Zapisz kod wybranego języka dla logowania
+            lblStatus.Text = $"Status: Rozpoczynam transkrypcję w języku {selectedLanguageCode}...";
             
-            // Zatrzymaj stoper
-            stopwatch.Stop();
+            string? result = null;
             
+            // Wykonaj transkrypcję w oddzielnym wątku z obsługą błędów
+            try 
+            {
+                // Wykonaj transkrypcję w zadaniu z obsługą anulowania
+                Task<string?> transcriptionTask;
+                
+                if (transcriber is WhisperTranscriber whisperTranscriber)
+                {
+                    // Użyj bardziej zaawansowanej metody z opcjami
+                    transcriptionTask = whisperTranscriber.TranscribeWithOptionsAsync(selectedFilePath, options, progressCallback);
+                }
+                else
+                {
+                    // Dla innych implementacji użyj standardowej metody
+                    transcriptionTask = transcriber.TranscribeAsync(selectedFilePath, progressCallback);
+                }
+                
+                // Oczekuj na zakończenie z obsługą anulowania
+                result = await transcriptionTask;
+                
+                // Przypisz wynik
+                transcriptionFilePath = result;
+            }
+            catch (OperationCanceledException)
+            {
+                // Obsługa anulowania przez użytkownika
+                lblStatus.Text = "Status: Transkrypcja została anulowana";
+                txtTranscription.Text = "Transkrypcja anulowana przez użytkownika.";
+                return;
+            }
+            catch (Exception ex)
+            {
+                // Szczegółowe logowanie błędu
+                Debug.WriteLine($"Szczegóły błędu transkrypcji: {ex}");
+                
+                string errorMessage = $"Wystąpił błąd podczas transkrypcji: {ex.Message}";
+                if (ex.InnerException != null)
+                {
+                    errorMessage += $"\n\nSzczegóły: {ex.InnerException.Message}";
+                }
+                
+                lblStatus.Text = $"Status: Błąd - {ex.Message}";
+                txtTranscription.Text = $"Wystąpił błąd: {ex.Message}";
+                
+                MessageBox.Show(errorMessage, "Błąd transkrypcji", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+            finally
+            {
+                // Zatrzymaj stoper i anuluj token
+                stopwatch.Stop();
+                cancellationTokenSource?.Dispose();
+                cancellationTokenSource = null;
+                
+                // Włącz przyciski bez względu na wynik
+                btnSelectFile.Enabled = true;
+                btnOptions.Enabled = true;
+            }
+            
+            // Przetwarzanie wyniku
             if (!string.IsNullOrEmpty(transcriptionFilePath) && File.Exists(transcriptionFilePath))
             {
-                // Wczytaj transkrypcję
-                transcriptionText = File.ReadAllText(transcriptionFilePath);
-                txtTranscription.Text = transcriptionText;
-                btnSaveTranscription.Enabled = true;
-                btnClearTranscription.Enabled = true;
-                lblStatus.Text = $"Status: Transkrypcja zakończona. Czas: {stopwatch.Elapsed.TotalSeconds:F1}s";
-                progressBarTranscription.Value = 100;
+                try 
+                {
+                    // Wczytaj transkrypcję
+                    transcriptionText = File.ReadAllText(transcriptionFilePath);
+                    txtTranscription.Text = transcriptionText;
+                    btnClearTranscription.Enabled = true;
+                    
+                    // Automatycznie zapisz transkrypcję
+                    SaveTranscriptionAutomatically(transcriptionText, transcriptionFilePath);
+                    
+                    // Zaktualizuj status
+                    TimeSpan elapsed = stopwatch.Elapsed;
+                    lblStatus.Text = $"Status: Transkrypcja zakończona (czas: {FormatElapsedTime(elapsed)})";
+                    
+                    // Oznacz plik jako przetranskrybowany
+                    currentFileTranscribed = true;
+                    
+                    // Wyłącz przycisk transkrypcji, ponieważ plik został już przetranskrybowany
+                    btnTranscribe.Enabled = false;
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Błąd odczytu pliku transkrypcji: {ex}");
+                    lblStatus.Text = $"Status: Błąd odczytu pliku transkrypcji - {ex.Message}";
+                    txtTranscription.Text = "Błąd podczas odczytu pliku transkrypcji.";
+                }
             }
             else
             {
-                txtTranscription.Text = "Błąd podczas transkrypcji.";
-                lblStatus.Text = "Status: Błąd transkrypcji";
-                progressBarTranscription.Visible = false;
+                txtTranscription.Text = "Błąd podczas transkrypcji - nie udało się wygenerować pliku wyjściowego.";
+                lblStatus.Text = "Status: Błąd transkrypcji - brak pliku wyjściowego";
             }
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Błąd podczas transkrypcji: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            lblStatus.Text = $"Status: Błąd - {ex.Message}";
-            txtTranscription.Text = $"Wystąpił błąd: {ex.Message}";
-            progressBarTranscription.Visible = false;
+            // Ostatnia linia obrony - przechwycenie wszystkich innych błędów
+            Debug.WriteLine($"Nieoczekiwany błąd: {ex}");
+            
+            string errorMessage = $"Wystąpił nieoczekiwany błąd: {ex.Message}";
+            if (ex.InnerException != null)
+            {
+                errorMessage += $"\n\nSzczegóły: {ex.InnerException.Message}";
+            }
+            
+            MessageBox.Show(errorMessage, "Błąd podczas transkrypcji", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            lblStatus.Text = $"Status: Nieoczekiwany błąd - {ex.Message}";
+            txtTranscription.Text = $"Wystąpił nieoczekiwany błąd: {ex.Message}";
         }
         finally
         {
-            btnTranscribe.Enabled = true;
+            // Włącz przyciski z powrotem
             btnSelectFile.Enabled = true;
-        }
-    }
-
-    private string GetLanguageCode()
-    {
-        switch (cboLanguage.SelectedIndex)
-        {
-            case 0: return "pl";
-            case 1: return "en";
-            case 2: return "de";
-            case 3: return "fr";
-            case 4: return "es";
-            case 5: return "it";
-            case 6: return "ru";
-            case 7: return "uk";
-            case 8: return "cs";
-            default: return "pl";
-        }
-    }
-
-    private async void btnStartObsidian_Click(object sender, EventArgs e)
-    {
-        try
-        {
-            // Wyłączamy przycisk na czas uruchamiania, aby zapobiec wielokrotnym kliknięciom
-            btnStartObsidian.Enabled = false;
-            lblRecordingStatus.Text = "Status: Uruchamianie Obsidian...";
+            btnOptions.Enabled = true;
             
-            // Uruchamiamy asynchronicznie
-            bool success = await externalAppController.StartAppAsync();
-            
-            if (success)
-            {
-                lblRecordingStatus.Text = "Status: Obsidian uruchomiony";
-            }
-            else
-            {
-                lblRecordingStatus.Text = "Status: Nie udało się uruchomić Obsidian";
-            }
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show($"Błąd podczas uruchamiania Obsidian: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            lblRecordingStatus.Text = $"Status: Błąd - {ex.Message}";
-        }
-        finally
-        {
-            // Zawsze włączamy przycisk z powrotem
-            btnStartObsidian.Enabled = true;
+            // Nie włączamy btnTranscribe - jeśli transkrypcja się powiodła, przycisk powinien pozostać wyłączony
+            // btnTranscribe jest włączany tylko gdy użytkownik wybierze nowy plik
         }
     }
 
@@ -214,15 +409,7 @@ public partial class Form1 : Form
     {
         try
         {
-            // Wyświetl informację o możliwościach nagrywania
-            MessageBox.Show(
-                "Możesz nagrywać dźwięk z mikrofonu lub dźwięk systemowy (np. z Discorda, przeglądarki).\n\n" +
-                "Aby nagrać dźwięk z Discorda, wybierz opcję 'Dźwięk systemowy' z listy źródeł dźwięku.",
-                "Informacja o nagrywaniu",
-                MessageBoxButtons.OK,
-                MessageBoxIcon.Information);
-            
-            // Otwórz formularz nagrywania
+            // Otwórz formularz nagrywania bez wyświetlania komunikatu informacyjnego
             RecorderForm recorderForm = new RecorderForm(this);
             recorderForm.Show();
         }
@@ -232,110 +419,18 @@ public partial class Form1 : Form
         }
     }
 
-    /// <summary>
-    /// Otwiera aktualną transkrypcję w Obsidianie
-    /// </summary>
-    private void OpenTranscriptionInObsidian()
-    {
-        try
-        {
-            // Najpierw upewnij się, że Obsidian jest uruchomiony
-            if (!externalAppController.StartApp())
-            {
-                MessageBox.Show("Nie udało się uruchomić Obsidian. Sprawdź czy jest zainstalowany.", 
-                    "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return;
-            }
-            
-            // Jeśli mamy zapisaną transkrypcję, otwórz ją w Obsidianie
-            string fileToOpen = string.Empty;
-            
-            if (!string.IsNullOrEmpty(lastTranscriptionFilePath) && File.Exists(lastTranscriptionFilePath))
-            {
-                fileToOpen = lastTranscriptionFilePath;
-            }
-            else if (!string.IsNullOrEmpty(transcriptionFilePath) && File.Exists(transcriptionFilePath))
-            {
-                fileToOpen = transcriptionFilePath;
-            }
-            
-            if (!string.IsNullOrEmpty(fileToOpen))
-            {
-                // Otwórz plik w Obsidianie za pomocą protokołu obsidian://
-                string obsidianUrl = $"obsidian://open?path={Uri.EscapeDataString(fileToOpen)}";
-                Process.Start(new ProcessStartInfo
-                {
-                    FileName = obsidianUrl,
-                    UseShellExecute = true
-                });
-                
-                lblRecordingStatus.Text = $"Status: Otwarto transkrypcję w Obsidianie";
-            }
-            else
-            {
-                MessageBox.Show("Brak transkrypcji do otwarcia. Najpierw wykonaj transkrypcję i zapisz ją.", 
-                    "Informacja", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            }
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show($"Błąd podczas otwierania transkrypcji w Obsidianie: {ex.Message}", 
-                "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            lblRecordingStatus.Text = $"Status: Błąd - {ex.Message}";
-        }
-    }
-
     public void SetSelectedFile(string filePath)
     {
         if (!string.IsNullOrEmpty(filePath) && File.Exists(filePath))
         {
             selectedFilePath = filePath;
             lblStatus.Text = $"Status: Wybrano plik {Path.GetFileName(selectedFilePath)}";
-            btnTranscribe.Enabled = true;
-            ResetProgressBar();
-        }
-    }
-
-    private void btnSaveTranscription_Click(object sender, EventArgs e)
-    {
-        if (string.IsNullOrEmpty(txtTranscription.Text) && string.IsNullOrEmpty(transcriptionText))
-        {
-            MessageBox.Show("Brak transkrypcji do zapisania.", "Informacja", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            return;
-        }
-
-        using (SaveFileDialog saveFileDialog = new SaveFileDialog())
-        {
-            saveFileDialog.Filter = "Pliki Markdown (*.md)|*.md|Pliki tekstowe (*.txt)|*.txt|Wszystkie pliki (*.*)|*.*";
-            saveFileDialog.Title = "Zapisz transkrypcję";
-            saveFileDialog.DefaultExt = "md";
             
-            if (!string.IsNullOrEmpty(transcriptionFilePath))
-            {
-                saveFileDialog.FileName = Path.GetFileName(transcriptionFilePath);
-                saveFileDialog.InitialDirectory = Path.GetDirectoryName(transcriptionFilePath);
-            }
-
-            if (saveFileDialog.ShowDialog() == DialogResult.OK)
-            {
-                try
-                {
-                    // Zapisz transkrypcję - zawsze używamy aktualnej zawartości kontrolki
-                    string textToSave = txtTranscription.Text;
-                    File.WriteAllText(saveFileDialog.FileName, textToSave);
-                    
-                    // Aktualizujemy zmienną transcriptionText, aby odzwierciedlała zapisaną zawartość
-                    transcriptionText = textToSave;
-                    lastTranscriptionFilePath = saveFileDialog.FileName;
-                    lblStatus.Text = $"Status: Transkrypcja zapisana do {Path.GetFileName(saveFileDialog.FileName)}";
-                    btnSaveTranscription.Enabled = true;
-                    btnClearTranscription.Enabled = true;
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"Błąd podczas zapisywania transkrypcji: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                }
-            }
+            // Zresetuj flagę transkrypcji, ponieważ wybrano nowy plik
+            currentFileTranscribed = false;
+            
+            // Włącz przycisk transkrypcji
+            btnTranscribe.Enabled = true;
         }
     }
 
@@ -352,55 +447,200 @@ public partial class Form1 : Form
         }
 
         DialogResult result = MessageBox.Show(
-            "Czy na pewno chcesz wyczyścić tekst transkrypcji?", 
+            "Czy na pewno chcesz wyczyścić transkrypcję?", 
             "Potwierdzenie", 
             MessageBoxButtons.YesNo, 
             MessageBoxIcon.Question);
-
+            
         if (result == DialogResult.Yes)
         {
-            txtTranscription.Clear();
             transcriptionText = string.Empty;
+            txtTranscription.Text = string.Empty;
             btnClearTranscription.Enabled = false;
-            btnSaveTranscription.Enabled = false;
-            lblStatus.Text = "Status: Transkrypcja została wyczyszczona.";
-            ResetProgressBar();
+            lblStatus.Text = "Status: Transkrypcja wyczyszczona";
         }
     }
 
-    /// <summary>
-    /// Resetuje pasek postępu do stanu początkowego (ukryty, wartość 0).
-    /// </summary>
-    private void ResetProgressBar()
-    {
-        progressBarTranscription.Value = 0;
-        progressBarTranscription.Visible = false;
-    }
-
-    private void progressBarTranscription_Click(object sender, EventArgs e)
-    {
-        // Pusty handler dla zdarzenia kliknięcia paska postępu
-    }
-
-    private void UpdateProgress(int percentComplete)
-    {
-        progressBarTranscription.Value = percentComplete;
-        progressBarTranscription.Visible = true;
-    }
-    
     /// <summary>
     /// Aktualizuje zmienną transcriptionText przy każdej zmianie tekstu w polu txtTranscription.
     /// Włącza przyciski zapisu i czyszczenia, jeśli pole zawiera tekst.
     /// </summary>
     private void txtTranscription_TextChanged(object sender, EventArgs e)
     {
-        // Aktualizujemy zmienną przy każdej zmianie tekstu
-        transcriptionText = txtTranscription.Text;
+        bool hasText = !string.IsNullOrEmpty(txtTranscription.Text) && 
+                       txtTranscription.Text != "Trwa transkrypcja...";
         
-        // Włączamy/wyłączamy przyciski w zależności od tego, czy jest tekst
-        bool hasText = !string.IsNullOrEmpty(transcriptionText);
-        btnSaveTranscription.Enabled = hasText;
         btnClearTranscription.Enabled = hasText;
+    }
+
+    /// <summary>
+    /// Otwiera folder z transkrypcjami w Eksploratorze Windows.
+    /// </summary>
+    private void btnOpenTranscriptionsFolder_Click(object sender, EventArgs e)
+    {
+        try
+        {
+            // Określ ścieżkę do folderu z transkrypcjami
+            string transcriptionsFolder;
+            
+            // Jeśli istnieje ostatnio używany plik transkrypcji, użyj jego folderu
+            if (!string.IsNullOrEmpty(lastTranscriptionFilePath) && File.Exists(lastTranscriptionFilePath))
+            {
+                transcriptionsFolder = Path.GetDirectoryName(lastTranscriptionFilePath) ?? string.Empty;
+            }
+            // W przeciwnym razie użyj domyślnego folderu transkrypcji
+            else
+            {
+                // Sprawdź ścieżkę względną w folderze aplikacji
+                string appFolder = AppDomain.CurrentDomain.BaseDirectory;
+                string relativeFolder = Path.Combine(appFolder, "transcriptions");
+                
+                // Sprawdź ścieżkę w katalogu głównym projektu
+                string projectRootFolder = Path.GetFullPath(Path.Combine(appFolder, "..", ".."));
+                string rootFolder = Path.Combine(projectRootFolder, "transcriptions");
+                
+                // Użyj folderu, który istnieje, lub utwórz domyślny
+                if (Directory.Exists(relativeFolder))
+                {
+                    transcriptionsFolder = relativeFolder;
+                }
+                else if (Directory.Exists(rootFolder))
+                {
+                    transcriptionsFolder = rootFolder;
+                }
+                else
+                {
+                    // Utwórz folder, jeśli nie istnieje
+                    transcriptionsFolder = relativeFolder;
+                    Directory.CreateDirectory(transcriptionsFolder);
+                }
+            }
+            
+            // Otwórz folder w Eksploratorze Windows
+            if (!string.IsNullOrEmpty(transcriptionsFolder) && Directory.Exists(transcriptionsFolder))
+            {
+                Process.Start("explorer.exe", transcriptionsFolder);
+            }
+            else
+            {
+                MessageBox.Show("Nie można znaleźć folderu z transkrypcjami.", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Błąd podczas otwierania folderu: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+    }
+
+    private void SaveTranscriptionAutomatically(string transcriptionText, string suggestedFilePath)
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(transcriptionText))
+            {
+                return;
+            }
+
+            string fileName = Path.GetFileNameWithoutExtension(suggestedFilePath);
+            string directory = Path.GetDirectoryName(suggestedFilePath) ?? "transcriptions";
+            
+            // Upewnij się, że katalog istnieje
+            if (!Directory.Exists(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+            
+            // Zapisz transkrypcję automatycznie
+            File.WriteAllText(suggestedFilePath, transcriptionText);
+            
+            // Aktualizuj ostatnią zapisaną ścieżkę
+            lastTranscriptionFilePath = suggestedFilePath;
+            
+            // Aktualizuj status
+            lblStatus.Text = $"Status: Transkrypcja zakończona i automatycznie zapisana do {Path.GetFileName(suggestedFilePath)}. Czas: {stopwatch.Elapsed.TotalSeconds:F1}s";
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Błąd podczas automatycznego zapisywania transkrypcji: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+    }
+
+    private void UpdateStatusLabel(int progress, string? statusInfo)
+    {
+        try
+        {
+            // Usuwamy Application.DoEvents() - może powodować problemy
+            if (progress >= 0)
+            {
+                // Format: Status: Transkrypcja w toku... XX% (Pozostało: YY min ZZ sek)
+                if (string.IsNullOrEmpty(statusInfo))
+                {
+                    lblStatus.Text = $"Status: Transkrypcja w toku... {progress}%";
+                }
+                else
+                {
+                    // Wyróżnij informację o czasie
+                    lblStatus.Text = $"Status: Transkrypcja w toku... {progress}% {statusInfo}";
+                }
+            }
+            else if (progress == -1) // Specjalny kod dla informacji
+            {
+                // Informacje diagnostyczne i dotyczące przewidywanego czasu
+                if (!string.IsNullOrEmpty(statusInfo))
+                {
+                    // Wyświetl informacje statusowe
+                    lblStatus.Text = $"Status: {statusInfo}";
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            // Loguj błąd, ale nie przerywaj działania
+            Debug.WriteLine($"Błąd w UpdateStatusLabel: {ex.Message}");
+        }
+    }
+
+    private string FormatElapsedTime(TimeSpan elapsed)
+    {
+        return $"{elapsed.Hours:D2}:{elapsed.Minutes:D2}:{elapsed.Seconds:D2}";
+    }
+
+    // Dodajemy metodę obsługi przycisku Opcje
+    private void btnOptions_Click(object sender, EventArgs e)
+    {
+        try
+        {
+            // Otwórz formularz opcji z bieżącymi ustawieniami
+            using (var optionsForm = new OptionsForm(
+                this, 
+                selectedLanguageCode, 
+                selectedModelSize, 
+                highQualityTranscription, 
+                addPunctuation))
+            {
+                // Jeśli użytkownik zatwierdził zmiany, zostaną one zapisane w metodzie UpdateOptions
+                optionsForm.ShowDialog();
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Błąd podczas otwierania okna opcji: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+    }
+    
+    // Metoda do aktualizacji opcji z formularza opcji
+    public void UpdateOptions(string languageCode, string modelSize, bool highQuality, bool addPunct)
+    {
+        selectedLanguageCode = languageCode;
+        selectedModelSize = modelSize;
+        highQualityTranscription = highQuality;
+        addPunctuation = addPunct;
+        
+        // Zapisz ustawienia
+        SaveSettings();
+        
+        // Aktualizujemy status, aby pokazać, że opcje zostały zaktualizowane
+        lblStatus.Text = $"Status: Opcje zaktualizowane (język: {selectedLanguageCode}, model: {selectedModelSize})";
     }
 }
 

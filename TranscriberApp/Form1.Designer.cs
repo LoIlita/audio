@@ -28,25 +28,19 @@ partial class Form1
     /// </summary>
     private void InitializeComponent()
     {
-        this.btnSelectFile = new System.Windows.Forms.Button();
-        this.btnTranscribe = new System.Windows.Forms.Button();
-        this.lblStatus = new System.Windows.Forms.Label();
-        this.btnStartObsidian = new System.Windows.Forms.Button();
-        this.lblRecordingStatus = new System.Windows.Forms.Label();
-        this.groupBoxExternalApps = new System.Windows.Forms.GroupBox();
-        this.btnRecord = new System.Windows.Forms.Button();
-        this.grpTranscriptionOptions = new System.Windows.Forms.GroupBox();
-        this.lblLanguage = new System.Windows.Forms.Label();
-        this.cboLanguage = new System.Windows.Forms.ComboBox();
-        this.chkHighQualityTranscription = new System.Windows.Forms.CheckBox();
-        this.chkAddPunctuation = new System.Windows.Forms.CheckBox();
-        this.txtTranscription = new System.Windows.Forms.TextBox();
-        this.btnSaveTranscription = new System.Windows.Forms.Button();
-        this.btnClearTranscription = new System.Windows.Forms.Button();
-        this.progressBarTranscription = new System.Windows.Forms.ProgressBar();
-        this.groupBoxExternalApps.SuspendLayout();
-        this.grpTranscriptionOptions.SuspendLayout();
-        this.SuspendLayout();
+        components = new System.ComponentModel.Container();
+        btnSelectFile = new System.Windows.Forms.Button();
+        btnTranscribe = new System.Windows.Forms.Button();
+        lblStatus = new System.Windows.Forms.Label();
+        groupBoxExternalApps = new System.Windows.Forms.GroupBox();
+        lblRecordingStatus = new System.Windows.Forms.Label();
+        btnRecord = new System.Windows.Forms.Button();
+        txtTranscription = new System.Windows.Forms.TextBox();
+        btnClearTranscription = new System.Windows.Forms.Button();
+        btnOpenTranscriptionsFolder = new System.Windows.Forms.Button();
+        btnOptions = new System.Windows.Forms.Button();
+        groupBoxExternalApps.SuspendLayout();
+        SuspendLayout();
         
         // btnSelectFile
         this.btnSelectFile.Location = new System.Drawing.Point(30, 30);
@@ -67,147 +61,94 @@ partial class Form1
         this.btnTranscribe.UseVisualStyleBackColor = true;
         this.btnTranscribe.Click += new System.EventHandler(this.btnTranscribe_Click);
         
-        // lblStatus
-        this.lblStatus.AutoSize = true;
-        this.lblStatus.Location = new System.Drawing.Point(30, 70);
-        this.lblStatus.Name = "lblStatus";
-        this.lblStatus.Size = new System.Drawing.Size(350, 20);
-        this.lblStatus.TabIndex = 2;
-        this.lblStatus.Text = "Status: Gotowy";
+        // btnOptions - Nowy przycisk opcji
+        this.btnOptions.Location = new System.Drawing.Point(370, 30);
+        this.btnOptions.Name = "btnOptions";
+        this.btnOptions.Size = new System.Drawing.Size(150, 30);
+        this.btnOptions.TabIndex = 2;
+        this.btnOptions.Text = "Opcje";
+        this.btnOptions.UseVisualStyleBackColor = true;
+        this.btnOptions.Click += new System.EventHandler(this.btnOptions_Click);
         
         // Grupa opcji zewnętrznych aplikacji
-        this.groupBoxExternalApps.Controls.Add(this.btnRecord);
         this.groupBoxExternalApps.Controls.Add(this.lblRecordingStatus);
-        this.groupBoxExternalApps.Controls.Add(this.btnStartObsidian);
-        this.groupBoxExternalApps.Location = new System.Drawing.Point(30, 100);
+        this.groupBoxExternalApps.Controls.Add(this.btnRecord);
+        this.groupBoxExternalApps.Location = new System.Drawing.Point(30, 70);
         this.groupBoxExternalApps.Name = "groupBoxExternalApps";
         this.groupBoxExternalApps.Size = new System.Drawing.Size(520, 120);
-        this.groupBoxExternalApps.TabIndex = 5;
+        this.groupBoxExternalApps.TabIndex = 4;
         this.groupBoxExternalApps.TabStop = false;
-        this.groupBoxExternalApps.Text = "Zewnętrzne aplikacje";
+        this.groupBoxExternalApps.Text = "Nagrywanie audio";
         
-        // btnStartObsidian
-        this.btnStartObsidian.Location = new System.Drawing.Point(20, 30);
-        this.btnStartObsidian.Name = "btnStartObsidian";
-        this.btnStartObsidian.Size = new System.Drawing.Size(150, 30);
-        this.btnStartObsidian.TabIndex = 0;
-        this.btnStartObsidian.Text = "Uruchom Obsidian";
-        this.btnStartObsidian.UseVisualStyleBackColor = true;
-        this.btnStartObsidian.Click += new System.EventHandler(this.btnStartObsidian_Click);
+        // lblRecordingStatus
+        this.lblRecordingStatus.Location = new System.Drawing.Point(20, 80);
+        this.lblRecordingStatus.Name = "lblRecordingStatus";
+        this.lblRecordingStatus.Size = new System.Drawing.Size(480, 20);
+        this.lblRecordingStatus.TabIndex = 1;
+        this.lblRecordingStatus.Text = "Status: Gotowy do nagrywania";
         
         // btnRecord
-        this.btnRecord.Location = new System.Drawing.Point(200, 30);
+        this.btnRecord.Location = new System.Drawing.Point(20, 30);
         this.btnRecord.Name = "btnRecord";
         this.btnRecord.Size = new System.Drawing.Size(150, 30);
-        this.btnRecord.TabIndex = 1;
+        this.btnRecord.TabIndex = 0;
         this.btnRecord.Text = "Nagraj dźwięk";
         this.btnRecord.UseVisualStyleBackColor = true;
         this.btnRecord.Click += new System.EventHandler(this.btnRecord_Click);
         
-        // lblRecordingStatus
-        this.lblRecordingStatus.AutoSize = true;
-        this.lblRecordingStatus.Location = new System.Drawing.Point(20, 80);
-        this.lblRecordingStatus.Name = "lblRecordingStatus";
-        this.lblRecordingStatus.Size = new System.Drawing.Size(350, 20);
-        this.lblRecordingStatus.TabIndex = 4;
-        this.lblRecordingStatus.Text = "Status: Obsidian nie jest uruchomiony";
+        // lblStatus - przesuń pod grupę nagrywania
+        this.lblStatus.AutoSize = true;
+        this.lblStatus.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
+        this.lblStatus.Location = new System.Drawing.Point(30, 200);
+        this.lblStatus.Name = "lblStatus";
+        this.lblStatus.Size = new System.Drawing.Size(520, 20);
+        this.lblStatus.TabIndex = 5;
+        this.lblStatus.Text = "Status: Gotowy";
         
-        // Grupa opcji transkrypcji
-        this.grpTranscriptionOptions.Text = "Opcje transkrypcji";
-        this.grpTranscriptionOptions.Location = new System.Drawing.Point(30, 230);
-        this.grpTranscriptionOptions.Size = new System.Drawing.Size(520, 120);
-        this.grpTranscriptionOptions.Name = "grpTranscriptionOptions";
-        this.grpTranscriptionOptions.TabIndex = 6;
-        
-        // lblLanguage
-        this.lblLanguage.Text = "Język:";
-        this.lblLanguage.AutoSize = true;
-        this.lblLanguage.Location = new System.Drawing.Point(15, 25);
-        this.lblLanguage.Name = "lblLanguage";
-        this.lblLanguage.TabIndex = 0;
-        
-        // cboLanguage
-        this.cboLanguage.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
-        this.cboLanguage.Location = new System.Drawing.Point(150, 22);
-        this.cboLanguage.Size = new System.Drawing.Size(200, 23);
-        this.cboLanguage.Name = "cboLanguage";
-        this.cboLanguage.TabIndex = 1;
-        
-        // chkHighQualityTranscription
-        this.chkHighQualityTranscription.Text = "Wysoka jakość transkrypcji (wolniejsza)";
-        this.chkHighQualityTranscription.AutoSize = true;
-        this.chkHighQualityTranscription.Location = new System.Drawing.Point(15, 55);
-        this.chkHighQualityTranscription.Name = "chkHighQualityTranscription";
-        this.chkHighQualityTranscription.TabIndex = 2;
-        
-        // chkAddPunctuation
-        this.chkAddPunctuation.Text = "Dodaj automatycznie interpunkcję";
-        this.chkAddPunctuation.AutoSize = true;
-        this.chkAddPunctuation.Location = new System.Drawing.Point(15, 85);
-        this.chkAddPunctuation.Name = "chkAddPunctuation";
-        this.chkAddPunctuation.TabIndex = 3;
-        
-        // Pole na wynik transkrypcji
+        // Pole na wynik transkrypcji - przesuń wyżej, tam gdzie była grupa opcji
         this.txtTranscription.Multiline = true;
         this.txtTranscription.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
-        this.txtTranscription.Location = new System.Drawing.Point(30, 360);
-        this.txtTranscription.Size = new System.Drawing.Size(520, 200);
+        this.txtTranscription.Location = new System.Drawing.Point(30, 230);
+        this.txtTranscription.Size = new System.Drawing.Size(520, 300);
         this.txtTranscription.Name = "txtTranscription";
         this.txtTranscription.TabIndex = 7;
         this.txtTranscription.TextChanged += new System.EventHandler(this.txtTranscription_TextChanged);
         
-        // Przycisk zapisywania transkrypcji
-        this.btnSaveTranscription.Text = "Zapisz transkrypcję";
-        this.btnSaveTranscription.Location = new System.Drawing.Point(30, 570);
-        this.btnSaveTranscription.Size = new System.Drawing.Size(150, 30);
-        this.btnSaveTranscription.Enabled = false;
-        this.btnSaveTranscription.Name = "btnSaveTranscription";
-        this.btnSaveTranscription.TabIndex = 8;
-        this.btnSaveTranscription.Click += new System.EventHandler(this.btnSaveTranscription_Click);
-        
         // Przycisk czyszczenia transkrypcji
-        this.btnClearTranscription = new System.Windows.Forms.Button();
         this.btnClearTranscription.Text = "Wyczyść transkrypcję";
-        this.btnClearTranscription.Location = new System.Drawing.Point(190, 570);
+        this.btnClearTranscription.Location = new System.Drawing.Point(30, 540);
         this.btnClearTranscription.Size = new System.Drawing.Size(150, 30);
         this.btnClearTranscription.Enabled = false;
         this.btnClearTranscription.Name = "btnClearTranscription";
         this.btnClearTranscription.TabIndex = 9;
         this.btnClearTranscription.Click += new System.EventHandler(this.btnClearTranscription_Click);
         
-        // progressBarTranscription
-        this.progressBarTranscription.Location = new System.Drawing.Point(370, 70);
-        this.progressBarTranscription.Name = "progressBarTranscription";
-        this.progressBarTranscription.Size = new System.Drawing.Size(180, 20);
-        this.progressBarTranscription.TabIndex = 10;
-        this.progressBarTranscription.Visible = false;
+        // Przycisk otwierania folderu z transkrypcjami
+        this.btnOpenTranscriptionsFolder.Text = "Pokaż w folderze";
+        this.btnOpenTranscriptionsFolder.Location = new System.Drawing.Point(190, 540);
+        this.btnOpenTranscriptionsFolder.Size = new System.Drawing.Size(150, 30);
+        this.btnOpenTranscriptionsFolder.Name = "btnOpenTranscriptionsFolder";
+        this.btnOpenTranscriptionsFolder.TabIndex = 10;
+        this.btnOpenTranscriptionsFolder.Click += new System.EventHandler(this.btnOpenTranscriptionsFolder_Click);
         
         // Dodaj kontrolki do formularza
-        this.grpTranscriptionOptions.Controls.Add(this.lblLanguage);
-        this.grpTranscriptionOptions.Controls.Add(this.cboLanguage);
-        this.grpTranscriptionOptions.Controls.Add(this.chkHighQualityTranscription);
-        this.grpTranscriptionOptions.Controls.Add(this.chkAddPunctuation);
-        
-        this.Controls.Add(this.btnSelectFile);
-        this.Controls.Add(this.btnTranscribe);
-        this.Controls.Add(this.lblStatus);
-        this.Controls.Add(this.groupBoxExternalApps);
-        this.Controls.Add(this.grpTranscriptionOptions);
-        this.Controls.Add(this.txtTranscription);
-        this.Controls.Add(this.btnSaveTranscription);
+        this.Controls.Add(this.btnOptions);
+        this.Controls.Add(this.btnOpenTranscriptionsFolder);
         this.Controls.Add(this.btnClearTranscription);
-        this.Controls.Add(this.progressBarTranscription);
+        this.Controls.Add(this.txtTranscription);
+        this.Controls.Add(this.groupBoxExternalApps);
+        this.Controls.Add(this.lblStatus);
+        this.Controls.Add(this.btnTranscribe);
+        this.Controls.Add(this.btnSelectFile);
         
         // Form1
         this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 20F);
         this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-        this.ClientSize = new System.Drawing.Size(584, 620);
+        this.ClientSize = new System.Drawing.Size(584, 590);
         this.Name = "Form1";
         this.Text = "Aplikacja do transkrypcji";
         this.groupBoxExternalApps.ResumeLayout(false);
         this.groupBoxExternalApps.PerformLayout();
-        this.grpTranscriptionOptions.ResumeLayout(false);
-        this.grpTranscriptionOptions.PerformLayout();
         this.ResumeLayout(false);
         this.PerformLayout();
     }
@@ -217,17 +158,11 @@ partial class Form1
     private System.Windows.Forms.Button btnSelectFile;
     private System.Windows.Forms.Button btnTranscribe;
     private System.Windows.Forms.Label lblStatus;
-    private System.Windows.Forms.Button btnStartObsidian;
-    private System.Windows.Forms.Label lblRecordingStatus;
     private System.Windows.Forms.GroupBox groupBoxExternalApps;
+    private System.Windows.Forms.Label lblRecordingStatus;
     private System.Windows.Forms.Button btnRecord;
-    private System.Windows.Forms.GroupBox grpTranscriptionOptions;
-    private System.Windows.Forms.Label lblLanguage;
-    private System.Windows.Forms.ComboBox cboLanguage;
-    private System.Windows.Forms.CheckBox chkHighQualityTranscription;
-    private System.Windows.Forms.CheckBox chkAddPunctuation;
     private System.Windows.Forms.TextBox txtTranscription;
-    private System.Windows.Forms.Button btnSaveTranscription;
     private System.Windows.Forms.Button btnClearTranscription;
-    private System.Windows.Forms.ProgressBar progressBarTranscription;
+    private System.Windows.Forms.Button btnOpenTranscriptionsFolder;
+    private System.Windows.Forms.Button btnOptions;
 }

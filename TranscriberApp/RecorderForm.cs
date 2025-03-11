@@ -199,8 +199,8 @@ namespace TranscriberApp
         private bool useAlternativeMethod = false;
         private SilenceProvider? silenceProvider;
         
-        // Nowe pola dla miksowania dźwięku
-        private bool mixAudioSources = false;
+        // Opcje nagrywania
+        private bool mixAudioSources = true;
         private WaveInEvent? microphoneWaveIn;
         private WasapiLoopbackCapture? systemAudioCapture;
         private WaveFileWriter? mixedWriter;
@@ -209,7 +209,11 @@ namespace TranscriberApp
         private List<byte[]> microphoneChunks = new List<byte[]>();
         private List<byte[]> systemAudioChunks = new List<byte[]>();
         private int selectedMicrophoneIndex = -1;
+        private int selectedDeviceIndex = 0;
         private int sampleRate = 44100; // Domyślna częstotliwość próbkowania
+        
+        // Przechowuje wszystkie urządzenia audio
+        private List<string> audioDevices = new List<string>();
 
         public RecorderForm(Form1 parent)
         {
@@ -217,132 +221,33 @@ namespace TranscriberApp
             parentForm = parent;
             LoadAudioDevices();
             
-            // Dodaj checkbox dla alternatywnej metody
-            CheckBox chkAlternativeMethod = new CheckBox();
-            chkAlternativeMethod.Text = "Użyj alternatywnej metody nagrywania (jeśli standardowa nie działa)";
-            chkAlternativeMethod.AutoSize = true;
-            chkAlternativeMethod.Location = new Point(12, lblLevel.Bottom + 10);
-            chkAlternativeMethod.CheckedChanged += (s, e) => { useAlternativeMethod = chkAlternativeMethod.Checked; };
-            this.Controls.Add(chkAlternativeMethod);
-            
-            // Dodaj checkbox dla miksowania dźwięku
-            CheckBox chkMixAudio = new CheckBox();
-            chkMixAudio.Text = "Nagrywaj jednocześnie mikrofon i dźwięk systemowy";
-            chkMixAudio.AutoSize = true;
-            chkMixAudio.Location = new Point(12, chkAlternativeMethod.Bottom + 5);
-            chkMixAudio.CheckedChanged += (s, e) => 
-            { 
-                mixAudioSources = chkMixAudio.Checked;
-                if (mixAudioSources)
-                {
-                    // Jeśli włączono miksowanie, pokaż listę mikrofonów
-                    Label lblMicrophone = new Label();
-                    lblMicrophone.Text = "Wybierz mikrofon:";
-                    lblMicrophone.AutoSize = true;
-                    lblMicrophone.Location = new Point(30, chkMixAudio.Bottom + 5);
-                    this.Controls.Add(lblMicrophone);
-                    
-                    ComboBox cboMicrophone = new ComboBox();
-                    cboMicrophone.DropDownStyle = ComboBoxStyle.DropDownList;
-                    cboMicrophone.Width = 300;
-                    cboMicrophone.Location = new Point(30, lblMicrophone.Bottom + 5);
-                    
-                    // Dodaj dostępne mikrofony
-                    for (int i = 0; i < WaveInEvent.DeviceCount; i++)
-                    {
-                        var capabilities = WaveInEvent.GetCapabilities(i);
-                        cboMicrophone.Items.Add($"{capabilities.ProductName}");
-                    }
-                    
-                    if (cboMicrophone.Items.Count > 0)
-                    {
-                        cboMicrophone.SelectedIndex = 0;
-                        selectedMicrophoneIndex = 0;
-                    }
-                    
-                    cboMicrophone.SelectedIndexChanged += (sender, e) => 
-                    {
-                        selectedMicrophoneIndex = cboMicrophone.SelectedIndex;
-                    };
-                    
-                    this.Controls.Add(cboMicrophone);
-                    
-                    // Dostosuj rozmiar formularza
-                    this.ClientSize = new Size(this.ClientSize.Width, cboMicrophone.Bottom + 20);
-                }
-            };
-            this.Controls.Add(chkMixAudio);
-            
-            // Dodaj opcje jakości nagrywania
-            GroupBox grpQuality = new GroupBox();
-            grpQuality.Text = "Opcje jakości (dla lepszej transkrypcji)";
-            grpQuality.Location = new Point(12, chkMixAudio.Bottom + 10);
-            grpQuality.Width = this.ClientSize.Width - 24;
-            grpQuality.Height = 100;
-            
-            // Opcja częstotliwości próbkowania
-            Label lblSampleRate = new Label();
-            lblSampleRate.Text = "Częstotliwość próbkowania:";
-            lblSampleRate.AutoSize = true;
-            lblSampleRate.Location = new Point(10, 25);
-            grpQuality.Controls.Add(lblSampleRate);
-            
-            ComboBox cboSampleRate = new ComboBox();
-            cboSampleRate.DropDownStyle = ComboBoxStyle.DropDownList;
-            cboSampleRate.Width = 150;
-            cboSampleRate.Location = new Point(180, 22);
-            cboSampleRate.Items.AddRange(new object[] { "44.1 kHz (standard)", "48 kHz (wysoka jakość)", "96 kHz (najwyższa jakość)" });
-            cboSampleRate.SelectedIndex = 0;
-            cboSampleRate.SelectedIndexChanged += (s, e) => 
-            {
-                switch (cboSampleRate.SelectedIndex)
-                {
-                    case 0: sampleRate = 44100; break;
-                    case 1: sampleRate = 48000; break;
-                    case 2: sampleRate = 96000; break;
-                }
-            };
-            grpQuality.Controls.Add(cboSampleRate);
-            
-            // Dodaj informację o jakości
-            Label lblQualityInfo = new Label();
-            lblQualityInfo.Text = "Wyższa jakość nagrania = lepsza transkrypcja, ale większe pliki";
-            lblQualityInfo.AutoSize = true;
-            lblQualityInfo.Location = new Point(10, 55);
-            lblQualityInfo.ForeColor = Color.DarkBlue;
-            grpQuality.Controls.Add(lblQualityInfo);
-            
-            this.Controls.Add(grpQuality);
-            
-            // Dostosuj rozmiar formularza
-            this.ClientSize = new Size(this.ClientSize.Width, grpQuality.Bottom + 20);
+            // Dodaj przycisk Opcje
+            Button btnOptions = new Button();
+            btnOptions.Text = "Opcje";
+            btnOptions.Size = new Size(100, 35);
+            btnOptions.Location = new Point(btnStartRecording.Right + 10, btnStartRecording.Top);
+            btnOptions.Click += btnOptions_Click;
+            this.Controls.Add(btnOptions);
         }
-
+        
+        // Metoda wczytująca urządzenia audio do pamięci
         private void LoadAudioDevices()
         {
-            cboDevice.Items.Clear();
+            audioDevices.Clear();
             
             try
             {
                 // Dodaj opcję nagrywania dźwięku systemowego
-                cboDevice.Items.Add("Dźwięk systemowy (Discord, przeglądarki, itp.)");
+                audioDevices.Add("Dźwięk systemowy");
                 
                 // Dodaj urządzenia wejściowe (mikrofony)
                 for (int i = 0; i < WaveInEvent.DeviceCount; i++)
                 {
                     var capabilities = WaveInEvent.GetCapabilities(i);
-                    cboDevice.Items.Add($"Mikrofon: {capabilities.ProductName}");
+                    audioDevices.Add($"Mikrofon: {capabilities.ProductName}");
                 }
-
-                if (cboDevice.Items.Count > 0)
-                {
-                    cboDevice.SelectedIndex = 0; // Domyślnie wybierz dźwięk systemowy
-                }
-                else
-                {
-                    MessageBox.Show("Nie znaleziono urządzeń audio do nagrywania.", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    btnStartRecording.Enabled = false;
-                }
+                
+                selectedDeviceIndex = 0; // Domyślnie wybierz dźwięk systemowy
             }
             catch (Exception ex)
             {
@@ -351,7 +256,43 @@ namespace TranscriberApp
             }
         }
 
-        private void btnBrowse_Click(object sender, EventArgs e)
+        // Nowa metoda obsługi przycisku Opcje
+        private void btnOptions_Click(object? sender, EventArgs e)
+        {
+            try
+            {
+                // Otwórz formularz opcji z bieżącymi ustawieniami
+                using (var optionsForm = new RecordingOptionsForm(
+                    this, 
+                    useAlternativeMethod, 
+                    mixAudioSources, 
+                    selectedMicrophoneIndex, 
+                    sampleRate))
+                {
+                    // Jeśli użytkownik zatwierdził zmiany, zostaną one zapisane w metodzie UpdateOptions
+                    optionsForm.ShowDialog();
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd podczas otwierania okna opcji: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+        
+        // Nowa metoda do aktualizacji opcji z formularza opcji
+        public void UpdateOptions(bool alternativeMethod, bool mixAudio, int microphoneIndex, int samplingRate, int deviceIndex)
+        {
+            useAlternativeMethod = alternativeMethod;
+            mixAudioSources = mixAudio;
+            selectedMicrophoneIndex = microphoneIndex;
+            sampleRate = samplingRate;
+            selectedDeviceIndex = deviceIndex;
+            
+            // Aktualizuj status
+            lblRecordingStatus.Text = $"Opcje zaktualizowane.";
+        }
+
+        private void btnBrowse_Click(object? sender, EventArgs e)
         {
             using (SaveFileDialog saveFileDialog = new SaveFileDialog())
             {
@@ -368,7 +309,7 @@ namespace TranscriberApp
             }
         }
 
-        private void btnStartRecording_Click(object sender, EventArgs e)
+        private void btnStartRecording_Click(object? sender, EventArgs e)
         {
             if (isRecording)
             {
@@ -399,7 +340,7 @@ namespace TranscriberApp
                 else
                 {
                     // Sprawdź, czy wybrano dźwięk systemowy (loopback)
-                    isLoopbackMode = cboDevice.SelectedIndex == 0;
+                    isLoopbackMode = selectedDeviceIndex == 0;
                     
                     if (isLoopbackMode)
                     {
@@ -453,7 +394,7 @@ namespace TranscriberApp
                         try
                         {
                             waveIn = new WaveInEvent();
-                            waveIn.DeviceNumber = cboDevice.SelectedIndex - 1; // Odejmujemy 1, bo pierwszy element to loopback
+                            waveIn.DeviceNumber = selectedDeviceIndex - 1; // Odejmujemy 1, bo pierwszy element to loopback
                             waveIn.WaveFormat = new WaveFormat(44100, 1); // 44.1kHz, mono
                             waveIn.DataAvailable += WaveIn_DataAvailable;
                             waveIn.RecordingStopped += WaveIn_RecordingStopped;
@@ -483,8 +424,6 @@ namespace TranscriberApp
                 lblRecordingStatus.Text = mixAudioSources ? 
                     "Nagrywanie mikrofonu i dźwięku systemowego..." : 
                     (isLoopbackMode ? "Nagrywanie dźwięku systemowego..." : "Nagrywanie z mikrofonu...");
-                progressBarLevel.Style = ProgressBarStyle.Marquee;
-                cboDevice.Enabled = false;
                 btnBrowse.Enabled = false;
             }
             catch (Exception ex)
@@ -497,40 +436,33 @@ namespace TranscriberApp
 
         private void StartAlternativeLoopbackRecording()
         {
+            lblRecordingStatus.Text = "Inicjalizacja alternatywnej metody nagrywania dźwięku systemowego...";
+            Application.DoEvents(); // Odświeżenie UI
+            
             try
             {
-                lblRecordingStatus.Text = "Inicjalizacja alternatywnej metody nagrywania...";
-                Application.DoEvents(); // Odświeżenie UI
-                
-                // Utwórz urządzenie wyjściowe
-                MMDeviceEnumerator enumerator = new MMDeviceEnumerator();
-                MMDevice device = enumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
-                
-                // Utwórz źródło ciszy (aby utrzymać strumień audio aktywny)
-                silenceProvider = new SilenceProvider(new WaveFormat(44100, 2));
-                
-                // Utwórz urządzenie wyjściowe
-                wasapiOut = new WasapiOut(device, AudioClientShareMode.Shared, false, 100);
+                // Tworzymy obiekt WasapiOut i odtwarzamy ciszę, aby uaktywnić bufor dźwięku
+                wasapiOut = new WasapiOut();
+                silenceProvider = new SilenceProvider(new WaveFormat(44100, 1));
                 wasapiOut.Init(silenceProvider);
                 wasapiOut.Play();
                 
-                // Utwórz urządzenie przechwytujące
-                loopbackCapture = new WasapiLoopbackCapture(device);
+                // Teraz tworzymy loopbackCapture
+                loopbackCapture = new WasapiLoopbackCapture();
                 loopbackCapture.DataAvailable += LoopbackCapture_DataAvailable;
                 loopbackCapture.RecordingStopped += LoopbackCapture_RecordingStopped;
                 
-                // Utwórz plik wyjściowy
                 writer = new WaveFileWriter(outputFilePath, loopbackCapture.WaveFormat);
                 
-                lblRecordingStatus.Text = "Rozpoczynam nagrywanie dźwięku systemowego (alternatywna metoda)...";
+                lblRecordingStatus.Text = "Rozpoczynam nagrywanie dźwięku systemowego (metoda alternatywna)...";
                 Application.DoEvents(); // Odświeżenie UI
                 
                 loopbackCapture.StartRecording();
-                Debug.WriteLine("Nagrywanie dźwięku systemowego rozpoczęte (alternatywna metoda)");
+                Debug.WriteLine("Alternatywne nagrywanie dźwięku systemowego rozpoczęte");
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Błąd podczas inicjalizacji alternatywnej metody nagrywania: {ex.Message}", 
+                MessageBox.Show($"Błąd podczas inicjalizacji alternatywnej metody nagrywania dźwięku systemowego: {ex.Message}", 
                     "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 lblRecordingStatus.Text = $"Błąd: {ex.Message}";
                 CleanupRecording();
@@ -649,7 +581,6 @@ namespace TranscriberApp
                         {
                             finalMicWriter.Write(e.Buffer, 0, e.BytesRecorded);
                             finalMicWriter.Flush();
-                            UpdateAudioLevel(e.Buffer, e.BytesRecorded);
                         }
                     }
                     catch (Exception ex)
@@ -666,7 +597,6 @@ namespace TranscriberApp
                         {
                             finalSystemWriter.Write(e.Buffer, 0, e.BytesRecorded);
                             finalSystemWriter.Flush();
-                            UpdateAudioLevel(e.Buffer, e.BytesRecorded);
                         }
                     }
                     catch (Exception ex)
@@ -1046,37 +976,6 @@ namespace TranscriberApp
                 if (writer != null && e.BytesRecorded > 0)
                 {
                     writer.Write(e.Buffer, 0, e.BytesRecorded);
-                    
-                    // Aktualizacja wskaźnika poziomu dźwięku
-                    int max = 0;
-                    for (int i = 0; i < e.BytesRecorded; i += 2)
-                    {
-                        int sample = Math.Abs(BitConverter.ToInt16(e.Buffer, i));
-                        if (sample > max) max = sample;
-                    }
-                    
-                    // Konwersja na skalę 0-100 dla ProgressBar
-                    int level = max * 100 / 32768;
-                    
-                    // Aktualizacja UI musi być wykonana w wątku UI
-                    if (this.IsHandleCreated && !this.IsDisposed)
-                    {
-                        try
-                        {
-                            this.Invoke(new Action(() =>
-                            {
-                                if (!this.IsDisposed)
-                                {
-                                    progressBarLevel.Style = ProgressBarStyle.Continuous;
-                                    progressBarLevel.Value = Math.Min(level, 100);
-                                }
-                            }));
-                        }
-                        catch (Exception ex)
-                        {
-                            Debug.WriteLine($"Błąd podczas aktualizacji poziomu dźwięku: {ex.Message}");
-                        }
-                    }
                 }
             }
             catch (Exception ex)
@@ -1200,9 +1099,6 @@ namespace TranscriberApp
                             if (!this.IsDisposed)
                             {
                                 btnStartRecording.Text = "Rozpocznij nagrywanie";
-                                progressBarLevel.Value = 0;
-                                progressBarLevel.Style = ProgressBarStyle.Continuous;
-                                cboDevice.Enabled = true;
                                 btnBrowse.Enabled = true;
                             }
                         }));
@@ -1247,24 +1143,6 @@ namespace TranscriberApp
                 if (writer != null && e.BytesRecorded > 0)
                 {
                     writer.Write(e.Buffer, 0, e.BytesRecorded);
-                    
-                    // Aktualizacja wskaźnika poziomu dźwięku
-                    int max = 0;
-                    for (int i = 0; i < e.BytesRecorded; i += 2)
-                    {
-                        int sample = Math.Abs(BitConverter.ToInt16(e.Buffer, i));
-                        if (sample > max) max = sample;
-                    }
-                    
-                    // Konwersja na skalę 0-100 dla ProgressBar
-                    int level = max * 100 / 32768;
-                    
-                    // Aktualizacja UI musi być wykonana w wątku UI
-                    this.BeginInvoke(new Action(() =>
-                    {
-                        progressBarLevel.Style = ProgressBarStyle.Continuous;
-                        progressBarLevel.Value = Math.Min(level, 100);
-                    }));
                 }
             }
             catch (Exception ex)
@@ -1415,9 +1293,6 @@ namespace TranscriberApp
                         if (!this.IsDisposed)
                         {
                             btnStartRecording.Text = "Rozpocznij nagrywanie";
-                            progressBarLevel.Value = 0;
-                            progressBarLevel.Style = ProgressBarStyle.Continuous;
-                            cboDevice.Enabled = true;
                             btnBrowse.Enabled = true;
                         }
                     }));
@@ -1453,7 +1328,7 @@ namespace TranscriberApp
             }
         }
 
-        private void RecorderForm_FormClosing(object sender, FormClosingEventArgs e)
+        private void RecorderForm_FormClosing(object? sender, FormClosingEventArgs e)
         {
             if (isRecording)
             {
@@ -1553,48 +1428,6 @@ namespace TranscriberApp
                     "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 lblRecordingStatus.Text = $"Błąd: {ex.Message}";
                 CleanupRecording();
-            }
-        }
-
-        private void UpdateAudioLevel(byte[] buffer, int bytesRecorded)
-        {
-            try
-            {
-                // Aktualizacja wskaźnika poziomu dźwięku
-                int max = 0;
-                for (int i = 0; i < bytesRecorded; i += 2)
-                {
-                    int sample = Math.Abs(BitConverter.ToInt16(buffer, i));
-                    if (sample > max) max = sample;
-                }
-                
-                // Konwersja na skalę 0-100 dla ProgressBar
-                int level = max * 100 / 32768;
-                
-                // Aktualizacja UI musi być wykonana w wątku UI
-                if (this.IsHandleCreated && !this.IsDisposed)
-                {
-                    try
-                    {
-                        this.Invoke(new Action(() =>
-                        {
-                            if (!this.IsDisposed)
-                            {
-                                progressBarLevel.Style = ProgressBarStyle.Continuous;
-                                progressBarLevel.Value = Math.Min(level, 100);
-                            }
-                        }));
-                    }
-                    catch (Exception ex)
-                    {
-                        Debug.WriteLine($"Błąd podczas aktualizacji poziomu dźwięku: {ex.Message}");
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Błąd w UpdateAudioLevel: {ex.Message}");
-                // Nie wyświetlamy MessageBox, bo ta metoda jest wywoływana często
             }
         }
     }

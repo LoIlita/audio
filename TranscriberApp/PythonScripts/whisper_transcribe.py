@@ -12,6 +12,9 @@ import json
 import argparse
 import time
 from datetime import datetime
+import wave
+import contextlib
+import math
 
 try:
     import whisper
@@ -27,6 +30,9 @@ def setup_args():
     parser.add_argument('--output', '-o', type=str, help='Ścieżka do pliku wyjściowego')
     parser.add_argument('--model', type=str, default='small', help='Model Whisper (tiny, base, small, medium, large)')
     parser.add_argument('--language', type=str, default='pl', help='Język transkrypcji (domyślnie polski)')
+    parser.add_argument('--punctuation', action='store_true', help='Dodaj automatycznie interpunkcję')
+    parser.add_argument('--best_of', type=int, default=1, help='Parametr best_of dla Whisper')
+    parser.add_argument('--beam_size', type=int, default=1, help='Parametr beam_size dla Whisper')
     return parser.parse_args()
 
 def check_dependencies():
@@ -45,7 +51,82 @@ def check_dependencies():
     
     return missing_deps
 
-def transcribe_audio(audio_path, output_path=None, model_size='small', language='pl'):
+def get_audio_duration(audio_path):
+    """Pobiera długość pliku audio w sekundach."""
+    # Dla plików WAV
+    if audio_path.lower().endswith('.wav'):
+        try:
+            with contextlib.closing(wave.open(audio_path, 'r')) as f:
+                frames = f.getnframes()
+                rate = f.getframerate()
+                duration = frames / float(rate)
+                return duration
+        except Exception as e:
+            print(json.dumps({"warning": f"Nie można określić długości pliku WAV: {str(e)}"}))
+    
+    # Próba użycia ffprobe do innych formatów
+    try:
+        import subprocess
+        result = subprocess.run(
+            ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", audio_path],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+        return float(result.stdout)
+    except Exception as e:
+        print(json.dumps({"warning": f"Nie można określić długości pliku audio: {str(e)}"}))
+        # Zwróć szacunkową długość (10 minut)
+        return 600
+
+def estimate_completion_time(audio_duration, model_size, device):
+    """
+    Szacuje czas potrzebny do ukończenia transkrypcji w sekundach.
+    Bazuje na długości pliku audio, wybranym modelu i urządzeniu (CPU/GPU).
+    """
+    # Współczynniki prędkości dla różnych modeli i urządzeń
+    # (wartości oparte na przybliżonych pomiarach)
+    speed_factors = {
+        'cuda': {  # dla GPU
+            'tiny': 0.05,   # ~20x szybciej niż długość audio
+            'base': 0.1,    # ~10x szybciej niż długość audio
+            'small': 0.2,   # ~5x szybciej niż długość audio
+            'medium': 0.33, # ~3x szybciej niż długość audio
+            'large': 0.5    # ~2x szybciej niż długość audio
+        },
+        'cpu': {   # dla CPU
+            'tiny': 0.5,    # ~2x szybciej niż długość audio
+            'base': 0.75,   # ~1.3x szybciej niż długość audio
+            'small': 1.0,   # ~tyle samo co długość audio
+            'medium': 1.5,  # ~1.5x dłużej niż długość audio
+            'large': 3.0    # ~3x dłużej niż długość audio
+        }
+    }
+    
+    # Wybór odpowiedniego współczynnika
+    device_type = 'cuda' if device == 'cuda' else 'cpu'
+    factor = speed_factors[device_type].get(model_size, 1.0)
+    
+    # Obliczenie szacowanego czasu
+    estimated_time = audio_duration * factor
+    
+    # Minimalny czas to 5 sekund
+    return max(5, estimated_time)
+
+def format_time_remaining(seconds):
+    """Formatuje czas pozostały w formacie czytelnym dla człowieka."""
+    if seconds < 60:
+        return f"{int(seconds)} sek."
+    elif seconds < 3600:
+        minutes = int(seconds / 60)
+        seconds_remainder = int(seconds % 60)
+        return f"{minutes} min. {seconds_remainder} sek."
+    else:
+        hours = int(seconds / 3600)
+        minutes_remainder = int((seconds % 3600) / 60)
+        return f"{hours} godz. {minutes_remainder} min."
+
+def transcribe_audio(audio_path, output_path=None, model_size='small', language='pl', add_punctuation=False, best_of=1, beam_size=1):
     """
     Transkrybuje audio za pomocą Whisper AI.
     
@@ -54,6 +135,9 @@ def transcribe_audio(audio_path, output_path=None, model_size='small', language=
         output_path: Ścieżka do pliku wyjściowego (.md)
         model_size: Rozmiar modelu Whisper (tiny, base, small, medium, large)
         language: Język transkrypcji (np. 'pl', 'en', 'auto')
+        add_punctuation: Czy dodać automatycznie interpunkcję
+        best_of: Parametr best_of dla modelu Whisper
+        beam_size: Parametr beam_size dla modelu Whisper
         
     Returns:
         Ścieżka do pliku z transkrypcją
@@ -68,6 +152,11 @@ def transcribe_audio(audio_path, output_path=None, model_size='small', language=
         return None
     
     try:
+        # Pobranie długości pliku audio
+        audio_duration = get_audio_duration(audio_path)
+        print(json.dumps({"info": f"Długość audio: {format_time_remaining(audio_duration)}"}))
+        sys.stdout.flush()
+        
         # Wypisujemy informację o rozpoczęciu
         print(json.dumps({"progress": 0, "status": "loading_model"}))
         sys.stdout.flush()
@@ -77,10 +166,35 @@ def transcribe_audio(audio_path, output_path=None, model_size='small', language=
         print(json.dumps({"info": f"Używam urządzenia: {device}"}))
         sys.stdout.flush()
         
-        # Ładowanie modelu
-        model = whisper.load_model(model_size, device=device)
-        print(json.dumps({"progress": 10, "status": "model_loaded"}))
+        # Szacowanie czasu ukończenia
+        estimated_time = estimate_completion_time(audio_duration, model_size, device)
+        print(json.dumps({
+            "info": f"Szacowany czas transkrypcji: {format_time_remaining(estimated_time)}",
+            "estimated_time": estimated_time
+        }))
         sys.stdout.flush()
+        
+        # Zapisz czas rozpoczęcia
+        start_time = time.time()
+        
+        # Ładowanie modelu
+        try:
+            print(json.dumps({"info": f"Próbuję załadować model: {model_size}"}))
+            sys.stdout.flush()
+            model = whisper.load_model(model_size, device=device)
+            model_load_time = time.time() - start_time
+            print(json.dumps({
+                "progress": 10, 
+                "status": "model_loaded",
+                "time_elapsed": model_load_time,
+                "time_remaining": estimated_time - model_load_time
+            }))
+            sys.stdout.flush()
+        except Exception as e:
+            error_msg = f"Błąd podczas ładowania modelu {model_size}: {str(e)}"
+            print(json.dumps({"error": error_msg, "status": "error", "model_error": True}))
+            sys.stdout.flush()
+            raise Exception(error_msg)
         
         # Opcje transkrypcji
         transcribe_options = {
@@ -88,15 +202,49 @@ def transcribe_audio(audio_path, output_path=None, model_size='small', language=
             "task": "transcribe"
         }
         
+        # Dodaj opcje jakości, jeśli określone
+        if best_of > 1:
+            transcribe_options["best_of"] = best_of
+        if beam_size > 1:
+            transcribe_options["beam_size"] = beam_size
+            
+        # Opcje interpunkcji
+        if add_punctuation:
+            # W Whisper nie ma bezpośredniej opcji dla interpunkcji, jest ona domyślnie włączona
+            # Możemy dodać dodatkową informację w pliku wyjściowym
+            print(json.dumps({"info": "Interpunkcja włączona"}))
+            sys.stdout.flush()
+        
         # Rozpoczęcie transkrypcji
-        print(json.dumps({"progress": 20, "status": "transcribing"}))
+        print(json.dumps({
+            "progress": 20, 
+            "status": "transcribing",
+            "time_elapsed": time.time() - start_time,
+            "time_remaining": estimated_time - (time.time() - start_time)
+        }))
         sys.stdout.flush()
         
         # Faktyczna transkrypcja
         result = model.transcribe(audio_path, **transcribe_options, verbose=False)
         
+        # Okresowe aktualizacje postępu podczas transkrypcji
+        elapsed_time = time.time() - start_time
+        progress = min(90, int(20 + 70 * (elapsed_time / estimated_time)))
+        print(json.dumps({
+            "progress": progress, 
+            "status": "processing",
+            "time_elapsed": elapsed_time,
+            "time_remaining": max(0, estimated_time - elapsed_time)
+        }))
+        sys.stdout.flush()
+        
         # Informacja o zakończeniu transkrypcji
-        print(json.dumps({"progress": 90, "status": "formatting"}))
+        print(json.dumps({
+            "progress": 90, 
+            "status": "formatting",
+            "time_elapsed": time.time() - start_time,
+            "time_remaining": max(0, (estimated_time * 0.1))  # Zostało około 10% czasu
+        }))
         sys.stdout.flush()
         
         # Jeśli nie podano ścieżki wyjściowej, utworzymy ją
@@ -113,7 +261,12 @@ def transcribe_audio(audio_path, output_path=None, model_size='small', language=
             f.write(f"**Plik:** {audio_path}\n")
             f.write(f"**Model:** {model_size}\n")
             f.write(f"**Język:** {language}\n")
-            f.write(f"**Data:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
+            if add_punctuation:
+                f.write(f"**Interpunkcja:** Włączona\n")
+            if best_of > 1 or beam_size > 1:
+                f.write(f"**Jakość:** Best_of={best_of}, Beam_size={beam_size}\n")
+            f.write(f"**Data:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+            f.write(f"**Czas przetwarzania:** {format_time_remaining(time.time() - start_time)}\n\n")
             
             # Wykryty język
             if result.get("language"):
@@ -132,8 +285,18 @@ def transcribe_audio(audio_path, output_path=None, model_size='small', language=
                     end_time = format_timestamp(segment["end"])
                     f.write(f"**[{start_time} -> {end_time}]** {segment['text'].strip()}\n\n")
         
+        # Obliczenie faktycznego czasu transkrypcji
+        total_time = time.time() - start_time
+        
         # Informacja o zakończeniu
-        print(json.dumps({"progress": 100, "status": "completed", "output_path": output_path}))
+        print(json.dumps({
+            "progress": 100, 
+            "status": "completed", 
+            "output_path": output_path,
+            "total_time": total_time,
+            "audio_duration": audio_duration,
+            "speed_ratio": audio_duration / total_time if total_time > 0 else 0
+        }))
         sys.stdout.flush()
         
         return output_path
@@ -166,7 +329,7 @@ def main():
     args = setup_args()
     try:
         output_path = args.output
-        transcribe_audio(args.audio_path, output_path, args.model, args.language)
+        transcribe_audio(args.audio_path, output_path, args.model, args.language, args.punctuation, args.best_of, args.beam_size)
         return 0
     except Exception as e:
         # W przypadku błędu, zwracamy informację w formacie JSON
