@@ -18,30 +18,6 @@ Aplikacja desktopowa do transkrypcji plików audio z wykorzystaniem modelu Whisp
 - Audacity (opcjonalnie, do nagrywania)
 - Opcjonalnie: GPU z obsługą CUDA dla szybszej transkrypcji
 
-## 🚀 Instalacja
-
-1. Sklonuj repozytorium:
-
-   ```
-   git clone https://github.com/twój-użytkownik/aplikacja-transkrypcja.git
-   ```
-
-2. Zainstaluj wymagane pakiety Python:
-
-   ```
-   pip install openai-whisper
-   ```
-
-3. Otwórz projekt w Visual Studio lub zbuduj z linii poleceń:
-
-   ```
-   dotnet build
-   ```
-
-4. Uruchom aplikację:
-   ```
-   dotnet run --project TranscriberApp
-   ```
 
 ## 📝 Jak używać
 
@@ -63,24 +39,7 @@ Aplikacja desktopowa do transkrypcji plików audio z wykorzystaniem modelu Whisp
    - Postęp będzie widoczny w statusie
    - Po zakończeniu transkrypcji możesz otworzyć plik .md z wynikiem
 
-## 🔍 Struktura projektu
 
-```
-📂 TranscriberApp
- ├── 📂 PythonScripts                  # Skrypty do transkrypcji
- │   ├── whisper_transcribe.py         # Skrypt Python do Whisper AI
- ├── Form1.cs                          # Główny formularz aplikacji
- ├── Form1.Designer.cs                 # Kod projektanta interfejsu
- ├── ITranscriber.cs                   # Interfejs dla mechanizmu transkrypcji
- ├── WhisperTranscriber.cs             # Implementacja transkrypcji
- ├── IAudacityController.cs            # Interfejs dla sterowania Audacity
- ├── AudacityController.cs             # Implementacja uruchamiania Audacity
- ├── SystemRequirements.cs             # Sprawdzanie wymagań systemowych
- ├── Program.cs                        # Główna klasa aplikacji
- ├── TranscriberApp.csproj             # Plik projektu
-📂 audio                               # Folder na nagrania audio
-📂 transcriptions                      # Folder na pliki transkrypcji
-```
 
 ## 📜 Licencja
 
