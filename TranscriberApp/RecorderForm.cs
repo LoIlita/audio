@@ -793,16 +793,8 @@ namespace TranscriberApp
                     // Sprawdź, czy formularz jest jeszcze aktywny
                     if (this.IsHandleCreated && !this.IsDisposed)
                     {
-                        DialogResult result = MessageBox.Show(
-                            "Nagrywanie zakończone. Czy chcesz zamknąć okno nagrywania?",
-                            "Nagrywanie zakończone",
-                            MessageBoxButtons.YesNo,
-                            MessageBoxIcon.Question);
-                            
-                        if (result == DialogResult.Yes)
-                        {
-                            this.Close();
-                        }
+                        // Automatycznie zamykamy okno bez pytania
+                        this.Close();
                     }
                 }
                 else
@@ -1044,16 +1036,8 @@ namespace TranscriberApp
                                         }
                                     }
                                     
-                                    DialogResult result = MessageBox.Show(
-                                        "Nagrywanie zakończone. Czy chcesz zamknąć okno nagrywania?",
-                                        "Nagrywanie zakończone",
-                                        MessageBoxButtons.YesNo,
-                                        MessageBoxIcon.Question);
-                                        
-                                    if (result == DialogResult.Yes)
-                                    {
-                                        this.Close();
-                                    }
+                                    // Automatycznie zamykamy okno bez pytania
+                                    this.Close();
                                 }
                             }));
                         }
@@ -1180,16 +1164,8 @@ namespace TranscriberApp
                         // Przekaż ścieżkę do pliku do głównego formularza
                         parentForm.SetSelectedFile(outputFilePath);
                         
-                        DialogResult result = MessageBox.Show(
-                            "Nagrywanie zakończone. Czy chcesz zamknąć okno nagrywania?",
-                            "Nagrywanie zakończone",
-                            MessageBoxButtons.YesNo,
-                            MessageBoxIcon.Question);
-                            
-                        if (result == DialogResult.Yes)
-                        {
-                            this.Close();
-                        }
+                        // Automatycznie zamykamy okno bez pytania
+                        this.Close();
                     }
                     else
                     {
@@ -1333,17 +1309,12 @@ namespace TranscriberApp
             if (isRecording)
             {
                 DialogResult result = MessageBox.Show(
-                    "Nagrywanie jest w toku. Czy na pewno chcesz zamknąć okno nagrywania?",
-                    "Nagrywanie w toku",
-                    MessageBoxButtons.YesNo,
-                    MessageBoxIcon.Question);
-                    
-                if (result == DialogResult.No)
-                {
-                    e.Cancel = true;
-                    return;
-                }
+                    "Plik audio został nagrany i jest gotowy do transkrypcji.",
+                    "Nagrywanie zakończone",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
                 
+                // Po kliknięciu OK zatrzymujemy nagrywanie i pozwalamy zamknąć okno
                 StopRecording();
             }
         }
