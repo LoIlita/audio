@@ -32,4 +32,7 @@ packages/
 
 # Pliki testowe
 TestResults/
-[Tt]est[Rr]esult*/ 
+[Tt]est[Rr]esult*/
+
+# Katalog Releases
+Releases/ 
