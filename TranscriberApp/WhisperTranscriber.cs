@@ -398,12 +398,7 @@ public class WhisperTranscriber : ITranscriber
             process.BeginErrorReadLine();
             
             // Bezpieczne czekanie na zakończenie procesu
-            var timeoutTask = Task.Delay(TimeSpan.FromMinutes(30)); // 30 minut timeout
-            
-            if (await Task.WhenAny(process.WaitForExitAsync(), timeoutTask) == timeoutTask)
-            {
-                throw new TimeoutException("Proces Python przekroczył czas oczekiwania (30 minut)");
-            }
+            await process.WaitForExitAsync();
             
             // Sprawdzenie kodu wyjścia
             if (process.ExitCode != 0)

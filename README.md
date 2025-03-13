@@ -1,91 +1,48 @@
-# Aplikacja do Transkrypcji Audio
+# Aplikacja do Transkrypcji Audio - Wersja 1.0.2
 
-Aplikacja desktopowa do transkrypcji plików audio z wykorzystaniem modelu Whisper AI oraz integracji z Audacity.
+Prosta aplikacja do zamiany nagrań audio na tekst przy użyciu technologii Whisper AI.
 
-## 📋 Funkcje
+## Co nowego w wersji 1.0.2
 
-- Transkrypcja plików audio (WAV, MP3) do plików tekstowych w formacie Markdown
-- Integracja z Audacity do nagrywania dźwięku
-- Wsparcie dla przyspieszenia GPU (CUDA) dla szybszej transkrypcji
-- Generowanie transkrypcji ze znacznikami czasu
-- Sprawdzanie wymagań systemowych
+- **Usunięto limit czasowy transkrypcji** - aplikacja nie przerywa już procesu po 30 minutach
+- **Wsparcie dla dłuższych nagrań** - możesz transkrybować nagrania o dowolnej długości
+- Ulepszenia stabilności procesu transkrypcji
 
-## 🔧 Wymagania
+## Funkcje aplikacji
 
-- .NET 8.0 lub nowszy
-- Python 3.8 lub nowszy
-- Whisper AI (`pip install openai-whisper`)
-- Audacity (opcjonalnie, do nagrywania)
-- Opcjonalnie: GPU z obsługą CUDA dla szybszej transkrypcji
+- **Transkrypcja plików audio** - zamień pliki WAV i MP3 na tekst w formacie Markdown
+- **Nagrywanie dźwięku** - nagrywaj dźwięk bezpośrednio z aplikacji (dźwięk systemowy lub mikrofon)
+- **Integracja z Audacity** - możliwość zaawansowanej edycji audio
+- **Wsparcie dla GPU** - znacznie szybsza transkrypcja na komputerach z kartą NVIDIA
 
-## 🚀 Instalacja
+## Jak korzystać z aplikacji
 
-1. Sklonuj repozytorium:
+1. **Uruchomienie**: Pobierz najnowszą wersję z katalogu Releases i kliknij dwukrotnie na plik `TranscriberApp.exe`
 
-   ```
-   git clone https://github.com/twój-użytkownik/aplikacja-transkrypcja.git
-   ```
-
-2. Zainstaluj wymagane pakiety Python:
-
-   ```
-   pip install openai-whisper
-   ```
-
-3. Otwórz projekt w Visual Studio lub zbuduj z linii poleceń:
-
-   ```
-   dotnet build
-   ```
-
-4. Uruchom aplikację:
-   ```
-   dotnet run --project TranscriberApp
-   ```
-
-## 📝 Jak używać
-
-1. **Wybór pliku audio**:
+2. **Aby transkrybować istniejący plik**:
 
    - Kliknij przycisk "Wybierz plik"
-   - Wybierz plik .wav lub .mp3 z dialogu
-   - Nazwa wybranego pliku pojawi się w statusie
+   - Wskaż plik audio (WAV lub MP3)
+   - Kliknij "Transkrybuj"
 
-2. **Nagrywanie z Audacity**:
+3. **Aby nagrać nowy dźwięk**:
 
-   - Kliknij "Uruchom Audacity" (jeśli nie jest uruchomione)
-   - Ręcznie nagraj dźwięk w Audacity
-   - Zapisz plik w formacie WAV lub MP3
-   - Wybierz zapisany plik w aplikacji do transkrypcji
+   - Kliknij przycisk "Nagraj audio"
+   - Wybierz lokalizację do zapisania nagrania
+   - Kliknij "Rozpocznij nagrywanie"
+   - Po zakończeniu kliknij "Zatrzymaj nagrywanie"
+   - Aplikacja automatycznie wróci do głównego panelu z wybranym plikiem
 
-3. **Transkrypcja**:
-   - Kliknij przycisk "Transkrybuj"
-   - Postęp będzie widoczny w statusie
-   - Po zakończeniu transkrypcji możesz otworzyć plik .md z wynikiem
+4. **Transkrypcja**:
+   - Po wybraniu pliku kliknij "Transkrybuj"
+   - Postęp transkrypcji będzie widoczny na pasku
+   - Po zakończeniu możesz otworzyć i zapisać plik z transkrypcją
 
-## 🔍 Struktura projektu
+## Wymagania
 
-```
-📂 TranscriberApp
- ├── 📂 PythonScripts                  # Skrypty do transkrypcji
- │   ├── whisper_transcribe.py         # Skrypt Python do Whisper AI
- ├── Form1.cs                          # Główny formularz aplikacji
- ├── Form1.Designer.cs                 # Kod projektanta interfejsu
- ├── ITranscriber.cs                   # Interfejs dla mechanizmu transkrypcji
- ├── WhisperTranscriber.cs             # Implementacja transkrypcji
- ├── IAudacityController.cs            # Interfejs dla sterowania Audacity
- ├── AudacityController.cs             # Implementacja uruchamiania Audacity
- ├── SystemRequirements.cs             # Sprawdzanie wymagań systemowych
- ├── Program.cs                        # Główna klasa aplikacji
- ├── TranscriberApp.csproj             # Plik projektu
-📂 audio                               # Folder na nagrania audio
-📂 transcriptions                      # Folder na pliki transkrypcji
-```
+- Python 3.8+ (dla modułu transkrypcji)
+- Model Whisper AI (automatycznie pobierany przy pierwszym użyciu)
 
-## 📜 Licencja
+## Licencja
 
 Ten projekt jest udostępniany na licencji MIT. Szczegóły znajdziesz w pliku LICENSE.
-
-## 🤝 Wkład
-
-Zachęcamy do zgłaszania problemów i propozycji ulepszeń poprzez Issues oraz Pull Requests.
