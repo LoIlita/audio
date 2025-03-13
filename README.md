@@ -1,25 +1,51 @@
-# Aplikacja do Transkrypcji Audio - Wersja 1.0.2
+# Aplikacja do Transkrypcji Audio
 
-Prosta aplikacja do zamiany nagrań audio na tekst przy użyciu technologii Whisper AI.
+Aplikacja desktopowa do transkrypcji plików audio z wykorzystaniem modelu Whisper AI oraz integracji z Audacity.
 
-## Co nowego w wersji 1.0.2
+## 📋 Funkcje
 
-- **Usunięto limit czasowy transkrypcji** - aplikacja nie przerywa już procesu po 30 minutach
-- **Wsparcie dla dłuższych nagrań** - możesz transkrybować nagrania o dowolnej długości
-- Ulepszenia stabilności procesu transkrypcji
+- Transkrypcja plików audio (WAV, MP3) do plików tekstowych w formacie Markdown
+- Integracja z Audacity do nagrywania dźwięku
+- Wsparcie dla przyspieszenia GPU (CUDA) dla szybszej transkrypcji
+- Generowanie transkrypcji ze znacznikami czasu
+- Sprawdzanie wymagań systemowych
 
-## Funkcje aplikacji
+## 🔧 Wymagania
 
-- **Transkrypcja plików audio** - zamień pliki WAV i MP3 na tekst w formacie Markdown
-- **Nagrywanie dźwięku** - nagrywaj dźwięk bezpośrednio z aplikacji (dźwięk systemowy lub mikrofon)
-- **Integracja z Audacity** - możliwość zaawansowanej edycji audio
-- **Wsparcie dla GPU** - znacznie szybsza transkrypcja na komputerach z kartą NVIDIA
+- .NET 8.0 lub nowszy
+- Python 3.8 lub nowszy
+- Whisper AI (`pip install openai-whisper`)
+- Audacity (opcjonalnie, do nagrywania)
+- Opcjonalnie: GPU z obsługą CUDA dla szybszej transkrypcji
 
-## Jak korzystać z aplikacji
+## 🚀 Instalacja
 
-1. **Uruchomienie**: Pobierz najnowszą wersję z katalogu Releases i kliknij dwukrotnie na plik `TranscriberApp.exe`
+1. Sklonuj repozytorium:
 
-2. **Aby transkrybować istniejący plik**:
+   ```
+   git clone https://github.com/twój-użytkownik/aplikacja-transkrypcja.git
+   ```
+
+2. Zainstaluj wymagane pakiety Python:
+
+   ```
+   pip install openai-whisper
+   ```
+
+3. Otwórz projekt w Visual Studio lub zbuduj z linii poleceń:
+
+   ```
+   dotnet build
+   ```
+
+4. Uruchom aplikację:
+   ```
+   dotnet run --project TranscriberApp
+   ```
+
+## 📝 Jak używać
+
+1. **Wybór pliku audio**:
 
    - Kliknij przycisk "Wybierz plik"
    - Wskaż plik audio (WAV lub MP3)
@@ -27,22 +53,35 @@ Prosta aplikacja do zamiany nagrań audio na tekst przy użyciu technologii Whis
 
 3. **Aby nagrać nowy dźwięk**:
 
-   - Kliknij przycisk "Nagraj audio"
-   - Wybierz lokalizację do zapisania nagrania
-   - Kliknij "Rozpocznij nagrywanie"
-   - Po zakończeniu kliknij "Zatrzymaj nagrywanie"
-   - Aplikacja automatycznie wróci do głównego panelu z wybranym plikiem
+   - Kliknij "Uruchom Audacity" (jeśli nie jest uruchomione)
+   - Ręcznie nagraj dźwięk w Audacity
+   - Zapisz plik w formacie WAV lub MP3
+   - Wybierz zapisany plik w aplikacji do transkrypcji
 
-4. **Transkrypcja**:
-   - Po wybraniu pliku kliknij "Transkrybuj"
-   - Postęp transkrypcji będzie widoczny na pasku
-   - Po zakończeniu możesz otworzyć i zapisać plik z transkrypcją
+3. **Transkrypcja**:
+   - Kliknij przycisk "Transkrybuj"
+   - Postęp będzie widoczny w statusie
+   - Po zakończeniu transkrypcji możesz otworzyć plik .md z wynikiem
 
-## Wymagania
+## 🔍 Struktura projektu
 
-- Python 3.8+ (dla modułu transkrypcji)
-- Model Whisper AI (automatycznie pobierany przy pierwszym użyciu)
+```
+📂 TranscriberApp
+ ├── 📂 PythonScripts                  # Skrypty do transkrypcji
+ │   ├── whisper_transcribe.py         # Skrypt Python do Whisper AI
+ ├── Form1.cs                          # Główny formularz aplikacji
+ ├── Form1.Designer.cs                 # Kod projektanta interfejsu
+ ├── ITranscriber.cs                   # Interfejs dla mechanizmu transkrypcji
+ ├── WhisperTranscriber.cs             # Implementacja transkrypcji
+ ├── IAudacityController.cs            # Interfejs dla sterowania Audacity
+ ├── AudacityController.cs             # Implementacja uruchamiania Audacity
+ ├── SystemRequirements.cs             # Sprawdzanie wymagań systemowych
+ ├── Program.cs                        # Główna klasa aplikacji
+ ├── TranscriberApp.csproj             # Plik projektu
+📂 audio                               # Folder na nagrania audio
+📂 transcriptions                      # Folder na pliki transkrypcji
+```
 
-## Licencja
+## 📜 Licencja
 
 Ten projekt jest udostępniany na licencji MIT. Szczegóły znajdziesz w pliku LICENSE.
