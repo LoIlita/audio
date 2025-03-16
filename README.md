@@ -12,8 +12,7 @@ Prosta aplikacja do zamiany nagrań audio na tekst przy użyciu technologii Whis
 
 - **Transkrypcja plików audio** - zamień pliki WAV i MP3 na tekst w formacie Markdown
 - **Nagrywanie dźwięku** - nagrywaj dźwięk bezpośrednio z aplikacji (dźwięk systemowy lub mikrofon)
-- **Integracja z Audacity** - możliwość zaawansowanej edycji audio
-- **Wsparcie dla GPU** - znacznie szybsza transkrypcja na komputerach z kartą NVIDIA
+
 
 ## Jak korzystać z aplikacji
 
