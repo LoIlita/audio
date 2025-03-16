@@ -55,7 +55,7 @@ public partial class Form1 : Form
             // Zastosuj wczytane ustawienia
             selectedLanguageCode = appSettings.LanguageCode;
             selectedModelSize = appSettings.ModelSize;
-            highQualityTranscription = appSettings.HighQualityTranscription;
+            highQualityTranscription = appSettings.HighQuality;
             addPunctuation = appSettings.AddPunctuation;
             
             Debug.WriteLine($"Wczytano ustawienia: język={selectedLanguageCode}, model={selectedModelSize}");
@@ -68,7 +68,7 @@ public partial class Form1 : Form
             appSettings = new AppSettings();
             selectedLanguageCode = appSettings.LanguageCode;
             selectedModelSize = appSettings.ModelSize;
-            highQualityTranscription = appSettings.HighQualityTranscription;
+            highQualityTranscription = appSettings.HighQuality;
             addPunctuation = appSettings.AddPunctuation;
         }
     }
@@ -81,7 +81,7 @@ public partial class Form1 : Form
             // Aktualizuj obiekt ustawień
             appSettings.LanguageCode = selectedLanguageCode;
             appSettings.ModelSize = selectedModelSize;
-            appSettings.HighQualityTranscription = highQualityTranscription;
+            appSettings.HighQuality = highQualityTranscription;
             appSettings.AddPunctuation = addPunctuation;
             
             // Zapisz ustawienia
@@ -157,11 +157,21 @@ public partial class Form1 : Form
     {
         try
         {
-            transcriber = new WhisperTranscriber();
+            var settings = AppSettings.Load();
+            
+            // Użyj standardowego transkrybera
+            transcriber = new WhisperTranscriber(
+                pythonPath: "python",
+                scriptPath: null,
+                outputDirectory: "transcriptions",
+                modelSize: settings.ModelSize);
+            
+            lblStatus.Text = "Gotowy do transkrypcji";
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Błąd inicjalizacji transkrybera: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            MessageBox.Show($"Błąd podczas inicjalizacji transkrybera: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            lblStatus.Text = "Błąd inicjalizacji transkrybera";
         }
     }
 
@@ -610,37 +620,66 @@ public partial class Form1 : Form
     {
         try
         {
-            // Otwórz formularz opcji z bieżącymi ustawieniami
+            // Pobierz bieżące ustawienia
+            var appSettings = AppSettings.Load();
+            
+            // Utwórz formularz opcji z bieżącymi ustawieniami
             using (var optionsForm = new OptionsForm(
-                this, 
-                selectedLanguageCode, 
-                selectedModelSize, 
-                highQualityTranscription, 
-                addPunctuation))
+                this,
+                appSettings.LanguageCode,
+                appSettings.ModelSize,
+                appSettings.HighQuality,
+                appSettings.AddPunctuation))
             {
-                // Jeśli użytkownik zatwierdził zmiany, zostaną one zapisane w metodzie UpdateOptions
-                optionsForm.ShowDialog();
+                if (optionsForm.ShowDialog() == DialogResult.OK)
+                {
+                    // Sprawdź, czy trzeba zainicjalizować transkrybera ponownie
+                    bool reinitializeTranscriber =
+                        appSettings.LanguageCode != optionsForm.GetSelectedLanguageCode() ||
+                        appSettings.ModelSize != optionsForm.GetSelectedModelSize();
+                    
+                    appSettings.LanguageCode = optionsForm.GetSelectedLanguageCode();
+                    appSettings.ModelSize = optionsForm.GetSelectedModelSize();
+                    appSettings.HighQuality = optionsForm.IsHighQualityEnabled();
+                    appSettings.AddPunctuation = optionsForm.IsAddPunctuationEnabled();
+                    
+                    // Zapisz ustawienia
+                    appSettings.Save();
+                    
+                    // Jeśli zmieniono model lub język, zainicjuj transkrybera ponownie
+                    if (reinitializeTranscriber)
+                    {
+                        InitializeTranscriber();
+                    }
+                }
             }
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Błąd podczas otwierania okna opcji: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            MessageBox.Show($"Błąd podczas otwierania opcji: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
     }
-    
-    // Metoda do aktualizacji opcji z formularza opcji
-    public void UpdateOptions(string languageCode, string modelSize, bool highQuality, bool addPunct)
+
+    // Metoda aktualizująca opcje, wywoływana z formularza OptionsForm
+    public void UpdateOptions(string languageCode, string modelSize, bool highQuality, bool addPunctuation)
     {
+        // Aktualizuj lokalne zmienne
         selectedLanguageCode = languageCode;
         selectedModelSize = modelSize;
         highQualityTranscription = highQuality;
-        addPunctuation = addPunct;
+        addPunctuation = addPunctuation;
+        
+        // Aktualizuj ustawienia aplikacji
+        appSettings.LanguageCode = languageCode;
+        appSettings.ModelSize = modelSize;
+        appSettings.HighQuality = highQuality;
+        appSettings.AddPunctuation = addPunctuation;
         
         // Zapisz ustawienia
-        SaveSettings();
+        appSettings.Save();
         
-        // Aktualizujemy status, aby pokazać, że opcje zostały zaktualizowane
-        lblStatus.Text = $"Status: Opcje zaktualizowane (język: {selectedLanguageCode}, model: {selectedModelSize})";
+        // Zainicjalizuj transkrybera ponownie
+        InitializeTranscriber();
     }
 }
 

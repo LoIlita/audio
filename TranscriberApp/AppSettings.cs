@@ -20,12 +20,22 @@ namespace TranscriberApp
         public const string DefaultModelSize = "medium";
         public const bool DefaultHighQuality = false;
         public const bool DefaultAddPunctuation = true;
+        public const bool DefaultUseParallelTranscription = true;
+        public const int DefaultNumWorkers = 2;
+        public const float DefaultMemoryLimit = 0.7f;
+        public const bool DefaultSequentialProcessing = false;
+        public const bool DefaultMixAudioSources = true;
             
         // Właściwości ustawień
         public string LanguageCode { get; set; } = DefaultLanguageCode;
         public string ModelSize { get; set; } = DefaultModelSize;
-        public bool HighQualityTranscription { get; set; } = DefaultHighQuality;
+        public bool HighQuality { get; set; } = DefaultHighQuality;
         public bool AddPunctuation { get; set; } = DefaultAddPunctuation;
+        public bool UseParallelTranscription { get; set; } = DefaultUseParallelTranscription;
+        public int NumWorkers { get; set; } = DefaultNumWorkers;
+        public float MemoryLimit { get; set; } = DefaultMemoryLimit;
+        public bool SequentialProcessing { get; set; } = DefaultSequentialProcessing;
+        public bool MixAudioSources { get; set; } = DefaultMixAudioSources;
         
         /// <summary>
         /// Wczytuje ustawienia z pliku
@@ -36,8 +46,8 @@ namespace TranscriberApp
             try
             {
                 // Upewnij się, że katalog istnieje
-                string directory = Path.GetDirectoryName(SettingsPath);
-                if (!Directory.Exists(directory))
+                string? directory = Path.GetDirectoryName(SettingsPath);
+                if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
                 {
                     Directory.CreateDirectory(directory);
                 }
@@ -70,8 +80,8 @@ namespace TranscriberApp
             try
             {
                 // Upewnij się, że katalog istnieje
-                string directory = Path.GetDirectoryName(SettingsPath);
-                if (!Directory.Exists(directory))
+                string? directory = Path.GetDirectoryName(SettingsPath);
+                if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
                 {
                     Directory.CreateDirectory(directory);
                 }
@@ -94,8 +104,13 @@ namespace TranscriberApp
         {
             LanguageCode = DefaultLanguageCode;
             ModelSize = DefaultModelSize;
-            HighQualityTranscription = DefaultHighQuality;
+            HighQuality = DefaultHighQuality;
             AddPunctuation = DefaultAddPunctuation;
+            UseParallelTranscription = DefaultUseParallelTranscription;
+            NumWorkers = DefaultNumWorkers;
+            MemoryLimit = DefaultMemoryLimit;
+            SequentialProcessing = DefaultSequentialProcessing;
+            MixAudioSources = DefaultMixAudioSources;
         }
     }
 } 

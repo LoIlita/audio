@@ -219,6 +219,11 @@ namespace TranscriberApp
         {
             InitializeComponent();
             parentForm = parent;
+            
+            // Wczytaj ustawienia z AppSettings
+            var settings = AppSettings.Load();
+            mixAudioSources = settings.MixAudioSources;
+            
             LoadAudioDevices();
             
             // Dodaj przycisk Opcje
@@ -261,6 +266,10 @@ namespace TranscriberApp
         {
             try
             {
+                // Wczytaj aktualne ustawienie MixAudioSources z AppSettings
+                var settings = AppSettings.Load();
+                mixAudioSources = settings.MixAudioSources;
+                
                 // Otwórz formularz opcji z bieżącymi ustawieniami
                 using (var optionsForm = new RecordingOptionsForm(
                     this, 
@@ -287,6 +296,11 @@ namespace TranscriberApp
             selectedMicrophoneIndex = microphoneIndex;
             sampleRate = samplingRate;
             selectedDeviceIndex = deviceIndex;
+            
+            // Zapisz ustawienie MixAudioSources do AppSettings
+            var settings = AppSettings.Load();
+            settings.MixAudioSources = mixAudio;
+            settings.Save();
             
             // Aktualizuj status
             lblRecordingStatus.Text = $"Opcje zaktualizowane.";

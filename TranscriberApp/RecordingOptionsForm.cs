@@ -297,6 +297,11 @@ namespace TranscriberApp
         {
             MixAudioSources = chkMixAudio.Checked;
             
+            // Zapisz ustawienie do AppSettings
+            var settings = AppSettings.Load();
+            settings.MixAudioSources = MixAudioSources;
+            settings.Save();
+            
             // Jeśli opcja miksowania została włączona, załaduj listę mikrofonów
             if (MixAudioSources)
             {
@@ -330,14 +335,17 @@ namespace TranscriberApp
         {
             // Przywracanie domyślnych ustawień
             UseAlternativeMethod = false;
-            MixAudioSources = true; // Teraz domyślnie włączone
+            
+            // Wczytaj domyślne ustawienie MixAudioSources z AppSettings
+            MixAudioSources = AppSettings.DefaultMixAudioSources;
+            
             SelectedMicrophoneIndex = 0;
             SampleRate = 44100;
             SelectedDeviceIndex = 0;
             
             // Aktualizacja kontrolek
             chkAlternativeMethod.Checked = false;
-            chkMixAudio.Checked = true; // Zaznacz checkbox
+            chkMixAudio.Checked = MixAudioSources; // Użyj wartości z AppSettings
             cboSampleRate.SelectedIndex = 0;
             
             if (cboDevice.Items.Count > 0)
